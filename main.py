@@ -10,12 +10,12 @@ if __name__ == "__main__":
     total_rollout = n_envs * n_steps  # = 16,384
     batch_size = 1024      # divides 16,384 evenly
     n_epochs = 10          # you can try 5–8 if speed is critical
-    env = make_vec_env("Snake-one-hot-v3", n_envs=n_envs)
+    env = make_vec_env("Snake-one-hot-v2", n_envs=n_envs)
     policy_kwargs = dict(
-        net_arch=[dict(
+        net_arch=dict(
             pi=[512, 256, 128],
             vf=[512, 256, 128]
-        )],
+        ),
         activation_fn=torch.nn.ReLU
     )
 
@@ -37,5 +37,5 @@ if __name__ == "__main__":
         verbose=1,
     )
 
-    model.learn(total_timesteps=300_000)
+    model.learn(total_timesteps=3_000_000)
     model.save("ppo_snake")
