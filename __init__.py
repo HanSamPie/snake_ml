@@ -26,6 +26,22 @@ from snake.snake_env_0 import SnakeEnv
 
 
 
+# model = PPO(
+#     policy="MlpPolicy",   # MlpPolicy is fine; extractor provides features
+#     env=env,
+#     policy_kwargs=policy_kwargs,
+#     n_steps=1024,
+#     batch_size=256,
+#     gamma=0.99,
+#     gae_lambda=0.95,
+#     ent_coef=0.01,
+#     vf_coef=0.5,
+#     learning_rate=3e-4,
+#     clip_range=0.2,
+#     verbose=1,
+# )
+
+
 from stable_baselines3 import PPO
 import gymnasium as gym
 
