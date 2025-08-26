@@ -5,8 +5,7 @@ from gymnasium import spaces
 import numpy as np
 
 # CHANGES
-# reward scaled by length. Staying alive longer better
-# scale step panalty
+# only punish steps after steps_since_food > len(snake)*1.2
 
 # Action mapping
 ACTION_MAP = {
@@ -56,9 +55,10 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
-        self.steps, self.steps_food += 1
+        self.steps += 1 
+        self.steps_food += 1
         if self.steps > self.board_size * 1.2:
-            return self._get_obs(), -15.0, True, False, {}
+            return self._get_obs(), -10.0, True, False, {}
 
         dx, dy = ACTION_MAP[action]
         head_x, head_y = self.snake[0]
@@ -78,7 +78,7 @@ class SnakeEnv(gym.Env):
 
         if new_head == self.food:
             self._place_food()
-            reward = 10.0 * len(self.snake) * 0.1
+            reward = 10.0
 
             # Win condition: snake fills the board
             if len(self.snake) == self.board_size * self.board_size:
@@ -89,12 +89,12 @@ class SnakeEnv(gym.Env):
             self.snake.pop()    
 
 
-
-        pos_new, pos_old = self.snake[:2]
-        if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-            reward = 0.05  # reward for moving closer
-        else:
-            reward = -0.002 if self.steps_food > len(self.snake) * 1.2 else 0
+        if len(self.snake) > 1:
+            pos_new, pos_old = self.snake[:2]
+            if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
+                reward = 0.05  # reward for moving closer
+            else:
+                reward = -0.002 if self.steps_food > len(self.snake) * 1.2 else 0
         
         obs = self._get_obs()
         return obs, reward, self.done, False, {}
@@ -105,9 +105,7 @@ class SnakeEnv(gym.Env):
         if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
             return 0.05  # reward for moving closer
         
-        step_panelty = -0.002 * 2/len(self.snake)
-
-        reward = step_panelty if self.steps_food > len(self.snake) * 1.2 else 0
+        reward = -0.002 if self.steps_food > len(self.snake) * 1.2 else 0
 
         return reward
 

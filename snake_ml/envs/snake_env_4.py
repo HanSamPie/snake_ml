@@ -56,7 +56,8 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
-        self.steps, self.steps_food += 1
+        self.steps += 1 
+        self.steps_food += 1
         if self.steps > self.board_size * 1.2:
             return self._get_obs(), -15.0, True, False, {}
 
