@@ -89,7 +89,7 @@ class SnakeEnv(gym.Env):
         else:
             self.snake.pop()    
 
-
+        reward = 0
         if len(self.snake) > 1:
             pos_new, pos_old = self.snake[:2]
             if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
