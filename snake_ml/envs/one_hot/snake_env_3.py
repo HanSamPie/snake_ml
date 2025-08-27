@@ -61,7 +61,7 @@ class SnakeEnv(gym.Env):
         reward = 0.0
 
         self.steps += 1 
-        if self.steps > self.board_size * 1.2:
+        if self.steps > self.board_size**2 * 1.2:
             return self._get_obs(), -15.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
 
         dx, dy = ACTION_MAP[action]

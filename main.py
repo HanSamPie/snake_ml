@@ -94,8 +94,8 @@ def test(max_steps=200, render=True):
 if __name__ == "__main__":
     env_str = "Snake-one-hot-v3"
     model_path = f"{env_str}.zip"
-    device = "cpu"
-    timesteps = 10_000
+    device = "cuda"
+    timesteps = 10_000_000
 
     n_envs = 32
     n_steps = 512          # rollout per env
@@ -113,5 +113,5 @@ if __name__ == "__main__":
     print("=== Starting Snake PPO Script ===")
     #train()
     #load_train()
-    test(max_steps=20, render=False)
+    test(max_steps=20)
     print("=== Script finished ===")
