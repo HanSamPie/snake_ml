@@ -9,6 +9,18 @@ import torch
 
 def train():
     env = make_vec_env(env_str, n_envs=n_envs)
+
+    print("\n=== Running train() ===")
+    print(f"Environment: {env_str}")
+    print(f"Device: {device}")
+    print(f"Number of environments: {n_envs}")
+    print(f"Rollout steps per env (n_steps): {n_steps}")
+    print(f"Batch size: {batch_size}")
+    print(f"Number of epochs: {n_epochs}")
+    print(f"Total timesteps: {timesteps}")
+    print(f"Policy kwargs: {policy_kwargs}")
+
+    print("Creating PPO model...")
     model = PPO(
         "MlpPolicy",
         env,
@@ -16,46 +28,50 @@ def train():
         n_steps=n_steps,
         batch_size=batch_size,
         n_epochs=n_epochs,
-        #learning_rate=3e-4,
-        #gamma=0.99,
-        #gae_lambda=0.95,
-        #clip_range=0.2,
-        #ent_coef=0.01,
-        #vf_coef=0.5,
-        #max_grad_norm=0.5,
         policy_kwargs=policy_kwargs,
         verbose=1,
     )
 
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-
+    print("Starting model learning...")
     model.learn(total_timesteps=timesteps)
+    print(f"Saving model to {model_path}...")
     model.save(model_path)
-
-    # profiler.disable()
-    # stats = pstats.Stats(profiler)
-    # stats.sort_stats("cumtime").print_stats(50)  
+    print("Training complete!\n")
 
 
 def load_train():
     env = make_vec_env(env_str, n_envs=n_envs)
+    print("\n\n=== Running load_train() ===")
+    print(f"Environment: {env_str}")
+    print(f"Device: {device}")
+    print(f"Number of environments: {n_envs}")
+    print(f"Total timesteps: {timesteps}\n\n")
+    
 
+    print(f"Loading model from {model_path}...")
     model = PPO.load(
         path=model_path,
         env=env,
         device=device
     )
 
+    print("Continuing model training...")
     model.learn(total_timesteps=timesteps)
+    print(f"Saving model to {model_path}...")
     model.save(model_path)
+    print("load_train() complete!\n")
 
 
 def test(max_steps=200, render=True):
-    # Load the trained model
+    print("\n=== Running test() ===")
+    print(f"Environment: {env_str}")
+    print(f"Max steps: {max_steps}")
+    print(f"Render mode: {'ON' if render else 'OFF'}")
+
+    print(f"Loading trained model from {model_path}...")
     model = PPO.load(model_path)
 
-    # Create a single environment
+    print("Creating single test environment...")
     env = gym.make(env_str, render_mode="human")
     
     obs, info = env.reset()
@@ -68,16 +84,18 @@ def test(max_steps=200, render=True):
             env.render()
         
         if terminated or truncated:
-            print(f"Episode ended after {step+1} steps, reward={reward}")
+            print(f"Episode ended after {step+1} steps, reward={reward}, info={info}")
             break
 
     env.close()
+    print("test() complete!\n")
+
 
 if __name__ == "__main__":
     env_str = "Snake-one-hot-v0"
     model_path = "ppo_snake.zip"
     device = "cpu"
-    timesteps=10_000
+    timesteps = 10_000
 
     n_envs = 32
     n_steps = 512          # rollout per env
@@ -92,7 +110,8 @@ if __name__ == "__main__":
         activation_fn=torch.nn.ReLU
     )
 
-    
+    print("=== Starting Snake PPO Script ===")
     train()
     load_train()
-    test()
+    test(max_steps=20, render=False)
+    print("=== Script finished ===")
