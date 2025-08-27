@@ -93,7 +93,7 @@ def test(max_steps=200, render=True):
 
 if __name__ == "__main__":
     env_str = "Snake-one-hot-v3"
-    model_path = "ppo_snake.zip"
+    model_path = f"{env_str}.zip"
     device = "cpu"
     timesteps = 10_000
 
