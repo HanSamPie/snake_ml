@@ -86,7 +86,6 @@ class SnakeEnv(gym.Env):
         obs = self._get_obs()
         return obs, reward, self.done, False, { "length": len(self.snake), "cause":"EoF"}
 
-
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
         for x, y in self.snake[1:]:

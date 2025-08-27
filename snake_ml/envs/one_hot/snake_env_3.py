@@ -58,6 +58,8 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
+        reward = 0.0
+
         self.steps += 1 
         if self.steps > self.board_size * 1.2:
             return self._get_obs(), -15.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
@@ -94,9 +96,9 @@ class SnakeEnv(gym.Env):
         if len(self.snake) > 1:
             pos_new, pos_old = self.snake[:2]
             if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-                reward = 0.05  # reward for moving closer
+                reward += 0.05  # reward for moving closer
             else:
-                reward = -0.002 * 2/len(self.snake) if self.steps > len(self.snake) * 1.2 else 0
+                reward += -0.002 * 2/len(self.snake) if self.steps > len(self.snake) * 1.2 else 0
         
         obs = self._get_obs()
         return obs, reward, self.done, False, { "length": len(self.snake), "cause": "EoF"}

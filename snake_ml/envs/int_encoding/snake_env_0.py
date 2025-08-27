@@ -54,6 +54,8 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
+        reward = 0.0
+
         self.steps += 1 
         if self.steps > self.board_size * 1.2:
             return self._get_obs(), -15.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
@@ -72,8 +74,6 @@ class SnakeEnv(gym.Env):
         self.snake.insert(0, new_head)
 
         # Check food
-        #print(new_head, self.food)
-
         if new_head == self.food:
             self._place_food()
             reward = 10.0 * len(self.snake) * 0.1
@@ -86,28 +86,15 @@ class SnakeEnv(gym.Env):
         else:
             self.snake.pop()    
 
-        reward = 0
         if len(self.snake) > 1:
             pos_new, pos_old = self.snake[:2]
             if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-                reward = 0.05  # reward for moving closer
+                reward += 0.05  # reward for moving closer
             else:
-                reward = -0.002 * 2/len(self.snake) if self.steps > len(self.snake) * 1.2 else 0
+                reward += -0.002 * 2/len(self.snake) if self.steps > len(self.snake) * 1.2 else 0
         
         obs = self._get_obs()
         return obs, reward, self.done, False, { "length": len(self.snake), "cause": "EoF"}
-    
-    def food_distance_reward(self) -> float:
-        pos_new, pos_old = self.snake[:2]
-
-        if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-            return 0.05  # reward for moving closer
-        
-        step_panelty = -0.002 * 2/len(self.snake)
-
-        reward = step_panelty if self.steps > len(self.snake) * 1.2 else 0
-
-        return reward
 
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
