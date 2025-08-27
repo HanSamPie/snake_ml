@@ -38,6 +38,7 @@ class SnakeEnv(gym.Env):
         self.snake = None
         self.food = None
         self.done = False
+        self.direction = 1 # right
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -61,7 +62,11 @@ class SnakeEnv(gym.Env):
         if self.steps > self.board_size**2 * 1.2:
             return self._get_obs(), -10.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
 
-        dx, dy = ACTION_MAP[action]
+        opposites = {0: 2, 1: 3, 2: 0, 3: 1}
+        if action != opposites[self.direction]:
+            self.direction = action
+
+        dx, dy = ACTION_MAP[self.direction]
         head_x, head_y = self.snake[0]
         new_head = (head_x + dx, head_y + dy)
 

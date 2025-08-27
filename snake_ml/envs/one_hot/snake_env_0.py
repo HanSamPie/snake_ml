@@ -33,6 +33,7 @@ class SnakeEnv(gym.Env):
         self.snake = None
         self.food = None
         self.done = False
+        self.direction = 1 # right
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -48,10 +49,12 @@ class SnakeEnv(gym.Env):
 
     def step(self, action):
         action = int(action)
-        if self.done:
-            return self._get_obs(), 0.0, True, False, {}
 
-        dx, dy = ACTION_MAP[action]
+        opposites = {0: 2, 1: 3, 2: 0, 3: 1}
+        if action != opposites[self.direction]:
+            self.direction = action
+
+        dx, dy = ACTION_MAP[self.direction]
         head_x, head_y = self.snake[0]
         new_head = (head_x + dx, head_y + dy)
 
