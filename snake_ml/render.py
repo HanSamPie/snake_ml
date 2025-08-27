@@ -5,7 +5,7 @@ import time
 def render(snake, food, board_size):
     console = Console()
     
-    grid = np.full((board_size, board_size), " ")
+    grid = np.full((board_size, board_size), "-")
     for x, y in snake[1:]:
         grid[y, x] = "○"
     head_x, head_y = snake[0]
