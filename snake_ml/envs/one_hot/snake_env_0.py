@@ -62,7 +62,7 @@ class SnakeEnv(gym.Env):
             or new_head in self.snake:
             self.done = True
             reward = -20.0
-            return self._get_obs(), reward, True, False, {}
+            return self._get_obs(), reward, True, False, { "info": len(self.snake)}
 
         # Move snake
         self.snake.insert(0, new_head)
@@ -78,13 +78,13 @@ class SnakeEnv(gym.Env):
             if len(self.snake) == self.board_size * self.board_size:
                 self.done = True
                 reward = 100.0  # give a big reward for winning
-                return self._get_obs(), reward, True, False, {}
+                return self._get_obs(), reward, True, False, { "info": len(self.snake)}
         else:
             self.snake.pop()    
 
 
         obs = self._get_obs()
-        return obs, reward, self.done, False, {}
+        return obs, reward, self.done, False, { "info": len(self.snake)}
 
 
     def _get_obs(self):

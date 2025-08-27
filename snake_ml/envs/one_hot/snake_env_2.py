@@ -57,7 +57,7 @@ class SnakeEnv(gym.Env):
 
         self.steps += 1
         if self.steps > self.board_size * 1.2:
-            return self._get_obs(), -10.0, True, False, {}
+            return self._get_obs(), -10.0, True, False, { "info": len(self.snake)}
 
         dx, dy = ACTION_MAP[action]
         head_x, head_y = self.snake[0]
@@ -67,7 +67,7 @@ class SnakeEnv(gym.Env):
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
             self.done = True
-            return self._get_obs(), -20.0, True, False, {}
+            return self._get_obs(), -20.0, True, False, { "info": len(self.snake)}
 
         # Move snake
         self.snake.insert(0, new_head)
@@ -83,7 +83,7 @@ class SnakeEnv(gym.Env):
             if len(self.snake) == self.board_size * self.board_size:
                 self.done = True
                 reward = 100.0  # give a big reward for winning
-                return self._get_obs(), reward, True, False, {}
+                return self._get_obs(), reward, True, False, { "info": len(self.snake)}
         else:
             self.snake.pop()    
 
@@ -97,7 +97,7 @@ class SnakeEnv(gym.Env):
                 reward = -0.002 if self.steps > len(self.snake) * 1.2 else 0
         
         obs = self._get_obs()
-        return obs, reward, self.done, False, {}
+        return obs, reward, self.done, False, { "info": len(self.snake)}
     
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
