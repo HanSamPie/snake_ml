@@ -83,7 +83,7 @@ def test(max_steps=200, render=True):
         if render:
             env.render()
         
-        if terminated or truncated:
+        if terminated or truncated or step == max_steps - 1:
             print(f"Episode ended after {step+1} steps, reward={reward}, info={info}")
             break
 
@@ -92,7 +92,7 @@ def test(max_steps=200, render=True):
 
 
 if __name__ == "__main__":
-    env_str = "Snake-one-hot-v0"
+    env_str = "Snake-one-hot-v3"
     model_path = "ppo_snake.zip"
     device = "cpu"
     timesteps = 10_000
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     )
 
     print("=== Starting Snake PPO Script ===")
-    train()
-    load_train()
+    #train()
+    #load_train()
     test(max_steps=20, render=False)
     print("=== Script finished ===")
