@@ -39,8 +39,10 @@ def train():
     print("Training complete!\n")
 
 
-def load_train():
-    env = make_vec_env(env_str, n_envs=n_envs)
+def load_train(new_env=None):
+    new_env = env_str if new_env == None else new_env
+
+    env = make_vec_env(new_env, n_envs=n_envs)
     print("\n\n=== Running load_train() ===")
     print(f"Environment: {env_str}")
     print(f"Device: {device}")
@@ -52,7 +54,7 @@ def load_train():
     model = PPO.load(
         path=model_path,
         env=env,
-        device=device
+        device=device,
     )
 
     print("Continuing model training...")
@@ -92,26 +94,28 @@ def test(max_steps=200, render=True):
 
 
 if __name__ == "__main__":
-    env_str = "Snake-one-hot-v3"
-    model_path = f"{env_str}.zip"
+    env_str = "Snake-one-hot-v0"
+    model_path = "ppo_0to3"#f"{env_str}.zip"
     device = "cuda"
-    timesteps = 10_000_000
+    timesteps = 42_000_000
 
-    n_envs = 32
+    n_envs = 48
     n_steps = 512          # rollout per env
     total_rollout = n_envs * n_steps  # = 16,384
     batch_size = 1024      # divides 16,384 evenly
     n_epochs = 10          # you can try 5–8 if speed is critical
     policy_kwargs = dict(
         net_arch=dict(
-            pi=[512, 256, 128],
-            vf=[512, 256, 128]
+            pi=[512,512, 256, 128],
+            vf=[512,512, 256, 128]
         ),
         activation_fn=torch.nn.ReLU
     )
 
     print("=== Starting Snake PPO Script ===")
-    #train()
-    #load_train()
-    test(max_steps=20)
+    train()
+    load_train("Snake-one-hot-v1")
+    load_train("Snake-one-hot-v2")
+    load_train("Snake-one-hot-v3")
+    test(max_steps=200, render=False)
     print("=== Script finished ===")
