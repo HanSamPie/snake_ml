@@ -1,8 +1,9 @@
 import math
-import sys
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+
+from snake_ml.render import render
 
 # CHANGES
 # only punish steps after steps_since_food > len(snake)*1.2
@@ -114,13 +115,4 @@ class SnakeEnv(gym.Env):
         return board.flatten()
 
     def render(self):
-        if self.render_mode == "human":
-            grid = np.full((self.board_size, self.board_size), ".")
-            for x, y in self.snake[1:]:
-                grid[y, x] = "o"
-            head_x, head_y = self.snake[0]
-            grid[head_y, head_x] = "H"
-            fx, fy = self.food
-            grid[fy, fx] = "F"
-            print("\n".join(" ".join(row) for row in grid))
-            print()
+        render(self.snake, self.food, self.board_size)

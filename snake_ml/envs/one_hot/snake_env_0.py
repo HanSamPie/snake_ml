@@ -1,7 +1,7 @@
-import sys
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from snake_ml.render import render
 
 # Action mapping
 ACTION_MAP = {
@@ -61,7 +61,7 @@ class SnakeEnv(gym.Env):
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
             self.done = True
-            reward = -1.0
+            reward = -20.0
             return self._get_obs(), reward, True, False, {}
 
         # Move snake
@@ -71,13 +71,13 @@ class SnakeEnv(gym.Env):
         #print(new_head, self.food)
 
         if new_head == self.food:
-            reward = 1.0
+            reward = 10.0
             self._place_food()
 
             # Win condition: snake fills the board
             if len(self.snake) == self.board_size * self.board_size:
                 self.done = True
-                reward = 10.0  # give a big reward for winning
+                reward = 100.0  # give a big reward for winning
                 return self._get_obs(), reward, True, False, {}
         else:
             self.snake.pop()    
@@ -102,13 +102,4 @@ class SnakeEnv(gym.Env):
         self.food = tuple(self.np_random.choice(free_cells))
 
     def render(self):
-        if self.render_mode == "human":
-            grid = np.full((self.board_size, self.board_size), ".")
-            for x, y in self.snake[1:]:
-                grid[y, x] = "o"
-            head_x, head_y = self.snake[0]
-            grid[head_y, head_x] = "H"
-            fx, fy = self.food
-            grid[fy, fx] = "F"
-            print("\n".join(" ".join(row) for row in grid))
-            print()
+        render(self.snake, self.food, self.board_size)

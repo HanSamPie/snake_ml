@@ -1,8 +1,8 @@
 import math
-import sys
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from snake_ml.render import render
 
 # CHANGES
 # truncate after board_size * 1.2 steps
@@ -67,7 +67,7 @@ class SnakeEnv(gym.Env):
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
             self.done = True
-            return self._get_obs(), -29.0, True, False, {}
+            return self._get_obs(), -20.0, True, False, {}
 
         # Move snake
         self.snake.insert(0, new_head)
@@ -89,15 +89,13 @@ class SnakeEnv(gym.Env):
 
 
         obs = self._get_obs()
-        reward = self.food_distance_reward()
-        return obs, reward, self.done, False, {}
-    
-    def food_distance_reward(self) -> float:
         pos_new, pos_old = self.snake[:2]
 
         if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-            return 0.05  # reward for moving closer
-        return -0.002   # small penalty otherwise
+            reward = 0.05  # reward for moving closer
+        reward = -0.002   # small penalty otherwise
+
+        return obs, reward, self.done, False, {}
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
@@ -114,13 +112,4 @@ class SnakeEnv(gym.Env):
         self.food = tuple(self.np_random.choice(free_cells))
 
     def render(self):
-        if self.render_mode == "human":
-            grid = np.full((self.board_size, self.board_size), ".")
-            for x, y in self.snake[1:]:
-                grid[y, x] = "o"
-            head_x, head_y = self.snake[0]
-            grid[head_y, head_x] = "H"
-            fx, fy = self.food
-            grid[fy, fx] = "F"
-            print("\n".join(" ".join(row) for row in grid))
-            print()
+        render(self.snake, self.food, self.board_size)

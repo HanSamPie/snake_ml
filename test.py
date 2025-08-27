@@ -7,7 +7,7 @@ def test_snake(model_path="ppo_snake.zip", max_steps=200, render=True):
     model = PPO.load(model_path)
 
     # Create a single environment
-    env = gym.make("Snake-one-hot-v3", render_mode="human" if render else None)
+    env = gym.make("Snake-one-hot-v0", render_mode="human" if render else None)
     
     obs, info = env.reset()
     for step in range(max_steps):
@@ -20,7 +20,7 @@ def test_snake(model_path="ppo_snake.zip", max_steps=200, render=True):
         
         if terminated or truncated:
             print(f"Episode ended after {step+1} steps, reward={reward}")
-            obs, info = env.reset()
+            break
 
     env.close()
 
