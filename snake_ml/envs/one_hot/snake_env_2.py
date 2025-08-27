@@ -6,6 +6,7 @@ import numpy as np
 
 # CHANGES
 # only punish steps after steps_since_food > len(snake)*1.2
+# TODO consider passing steps as parameter
 
 # Action mapping
 ACTION_MAP = {
@@ -42,12 +43,10 @@ class SnakeEnv(gym.Env):
         super().reset(seed=seed)
 
         # Initialize snake in center
-        
         self.snake = [(self.board_size // 3, self.board_size // 2)]
         self.food = (2*self.board_size // 3, self.board_size // 2)
 
         self.steps = 0
-        self.steps_food = 0
         self.done = False
         obs = self._get_obs()
         return obs, {}
@@ -55,8 +54,7 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
-        self.steps += 1 
-        self.steps_food += 1
+        self.steps += 1
         if self.steps > self.board_size * 1.2:
             return self._get_obs(), -10.0, True, False, {}
 
@@ -95,20 +93,15 @@ class SnakeEnv(gym.Env):
             if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
                 reward = 0.05  # reward for moving closer
             else:
-                reward = -0.002 if self.steps_food > len(self.snake) * 1.2 else 0
+                reward = -0.002 if self.steps > len(self.snake) * 1.2 else 0
         
         obs = self._get_obs()
         return obs, reward, self.done, False, {}
     
-    def food_distance_reward(self) -> float:
-        pos_new, pos_old = self.snake[:2]
-
-        if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-            return 0.05  # reward for moving closer
-        
-        reward = -0.002 if self.steps_food > len(self.snake) * 1.2 else 0
-
-        return reward
+    def _place_food(self):
+        free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
+        self.food = tuple(self.np_random.choice(free_cells))
+        self.steps = 0
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
@@ -119,11 +112,6 @@ class SnakeEnv(gym.Env):
         food_x, food_y = self.food
         board[food_y, food_x, 3] = 1.0  # food
         return board.flatten()
-
-    def _place_food(self):
-        free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
-        self.food = tuple(self.np_random.choice(free_cells))
-        self.steps_food = 0
 
     def render(self):
         if self.render_mode == "human":
