@@ -1,3 +1,5 @@
+import cProfile
+import pstats
 import gymnasium as gym
 import snake_ml  # this runs register.py automatically
 from stable_baselines3 import PPO
@@ -10,7 +12,7 @@ if __name__ == "__main__":
     total_rollout = n_envs * n_steps  # = 16,384
     batch_size = 1024      # divides 16,384 evenly
     n_epochs = 10          # you can try 5–8 if speed is critical
-    env = make_vec_env("Snake-one-hot-v2", n_envs=n_envs)
+    env = make_vec_env("Snake-one-hot-v0", n_envs=n_envs)
     policy_kwargs = dict(
         net_arch=dict(
             pi=[512, 256, 128],
@@ -22,20 +24,27 @@ if __name__ == "__main__":
     model = PPO(
         "MlpPolicy",
         env,
-        device="cuda",       # your GPU will be used
+        device="cpu",       # your GPU will be used
         n_steps=n_steps,
         batch_size=batch_size,
         n_epochs=n_epochs,
-        learning_rate=3e-4,
-        gamma=0.99,
-        gae_lambda=0.95,
-        clip_range=0.2,
-        ent_coef=0.01,
-        vf_coef=0.5,
-        max_grad_norm=0.5,
+        #learning_rate=3e-4,
+        #gamma=0.99,
+        #gae_lambda=0.95,
+        #clip_range=0.2,
+        #ent_coef=0.01,
+        #vf_coef=0.5,
+        #max_grad_norm=0.5,
         policy_kwargs=policy_kwargs,
         verbose=1,
     )
 
-    model.learn(total_timesteps=3_000_000)
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+
+    model.learn(total_timesteps=10_000)
     model.save("ppo_snake")
+
+    # profiler.disable()
+    # stats = pstats.Stats(profiler)
+    # stats.sort_stats("cumtime").print_stats(50)  
