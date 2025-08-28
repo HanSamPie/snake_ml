@@ -5,14 +5,14 @@ import time
 def render(snake, food, board_size):
     console = Console()
     
-    grid = np.full((board_size, board_size), "-")
+    grid = np.full((board_size, board_size), " ")
     for x, y in snake[1:]:
-        grid[y, x] = "○"
+        grid[y, x] = "#"
     head_x, head_y = snake[0]
-    grid[head_y, head_x] = "◉"
+    grid[head_y, head_x] = "$"
     fx, fy = food
-    grid[fy, fx] = "🍎"
+    grid[fy, fx] = "*"
 
     console.clear()
     console.print(grid)
-    time.sleep(0.25)
+    time.sleep(0.125)
