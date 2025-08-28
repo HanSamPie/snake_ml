@@ -34,13 +34,13 @@ def train():
 
     print("Starting model learning...")
     model.learn(total_timesteps=timesteps)
-    print(f"Saving model to {model_path}...")
-    model.save(model_path)
+    print(f"Saving model to {save_path}...")
+    model.save(save_path)
     print("Training complete!\n")
 
 
-def load_train(new_env=None):
-    new_env = env_str if new_env == None else new_env
+def load_train(new_env):
+    new_env
 
     env = make_vec_env(new_env, n_envs=n_envs)
     print("\n\n=== Running load_train() ===")
@@ -59,8 +59,8 @@ def load_train(new_env=None):
 
     print("Continuing model training...")
     model.learn(total_timesteps=timesteps)
-    print(f"Saving model to {model_path}...")
-    model.save(model_path)
+    print(f"Saving model to {save_path}...")
+    model.save(save_path)
     print("load_train() complete!\n")
 
 
@@ -94,28 +94,29 @@ def test(max_steps=200, render=True):
 
 
 if __name__ == "__main__":
-    env_str = "Snake-one-hot-v0"
-    model_path = "ppo_0to3"#f"{env_str}.zip"
+    env_str = "Snake-one-hot-v1"
+    model_path = "hot_1.2"#f"{env_str}.zip"
+    save_path = "hot_1.3"
     device = "cuda"
-    timesteps = 42_000_000
+    timesteps = 100_000_000
 
-    n_envs = 48
+    n_envs = 32
     n_steps = 512          # rollout per env
     total_rollout = n_envs * n_steps  # = 16,384
     batch_size = 1024      # divides 16,384 evenly
     n_epochs = 10          # you can try 5–8 if speed is critical
     policy_kwargs = dict(
         net_arch=dict(
-            pi=[512,512, 256, 128],
-            vf=[512,512, 256, 128]
+            pi=[1024, 512, 512, 256, 128],
+            vf=[1024, 512, 512, 256, 128]
         ),
         activation_fn=torch.nn.ReLU
     )
 
     print("=== Starting Snake PPO Script ===")
-    train()
-    load_train("Snake-one-hot-v1")
-    load_train("Snake-one-hot-v2")
-    load_train("Snake-one-hot-v3")
-    test(max_steps=200, render=False)
+    #train()
+    load_train(env_str)
+    # load_train("Snake-one-hot-v2")
+    # load_train("Snake-one-hot-v3")
+    test(max_steps=200000, render=False)
     print("=== Script finished ===")
