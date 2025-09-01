@@ -28,7 +28,7 @@ register(
 
 # int encoding
 register(
-    # based on Snake-one-hot-v3
+    # based on Snake-one-hot-v0
     id="Snake-int-v0",
     entry_point="snake_ml.envs.int_encoding.snake_env_0:SnakeEnv",
 )

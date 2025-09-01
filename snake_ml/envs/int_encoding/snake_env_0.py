@@ -1,4 +1,3 @@
-import math
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -7,6 +6,7 @@ from snake_ml.render import render
 # CHANGES
 # TODO instead of one-hot encoding this version should use simple int encoding
 # this would greatly reduce the amount if inputs
+
 # Action mapping
 ACTION_MAP = {
     0: (-1, 0),   # up
@@ -25,7 +25,7 @@ class SnakeEnv(gym.Env):
 
         # Observation: 14x14x4 one-hot -> flattened
         self.observation_space = spaces.Box(
-            low=0.0, high=1.0,
+            low=0.0, high=3.0,
             shape=(board_size * board_size,),
             dtype=np.float32
         )
@@ -47,19 +47,12 @@ class SnakeEnv(gym.Env):
         self.snake = [(self.board_size // 3, self.board_size // 2)]
         self.food = (2*self.board_size // 3, self.board_size // 2)
 
-        self.steps = 0
         self.done = False
         obs = self._get_obs()
         return obs, {}
 
     def step(self, action):
         action = int(action)
-
-        reward = 0.0
-
-        self.steps += 1 
-        if self.steps > self.board_size**2 * 1.2:
-            return self._get_obs(), -15.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
 
         opposites = {0: 2, 1: 3, 2: 0, 3: 1}
         if action != opposites[self.direction]:
@@ -69,42 +62,47 @@ class SnakeEnv(gym.Env):
         head_x, head_y = self.snake[0]
         new_head = (head_x + dx, head_y + dy)
 
+        reward = 0.0
+
         # Check collisions
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
             self.done = True
-            return self._get_obs(), -20.0, True, False, { "length": len(self.snake), "cause": "collision"}
+            reward = -20.0
+            return self._get_obs(), reward, True, False, { "length": len(self.snake), "cause": "collision"}
 
         # Move snake
         self.snake.insert(0, new_head)
 
         # Check food
         if new_head == self.food:
+            reward = 10.0
             self._place_food()
-            reward = 10.0 * len(self.snake) * 0.1
 
             # Win condition: snake fills the board
             if len(self.snake) == self.board_size * self.board_size:
                 self.done = True
                 reward = 100.0  # give a big reward for winning
-                return self._get_obs(), reward, True, False, { "length": len(self.snake), "cause": "Win"}
+                return self._get_obs(), reward, True, False, { "length": len(self.snake), "cause": "win"}
         else:
             self.snake.pop()    
 
-        if len(self.snake) > 1:
-            pos_new, pos_old = self.snake[:2]
-            if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-                reward += 0.05  # reward for moving closer
-            else:
-                reward += -0.002 * 2/len(self.snake) if self.steps > len(self.snake) * 1.2 else 0
-        
         obs = self._get_obs()
-        return obs, reward, self.done, False, { "length": len(self.snake), "cause": "EoF"}
+        return obs, reward, self.done, False, { "length": len(self.snake), "cause":"EoF"}
+
+    def _get_obs(self):
+        board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
+        for x, y in self.snake[1:]:
+            board[y, x, 2] = 1.0  # body
+        head_x, head_y = self.snake[0]
+        board[head_y, head_x, 1] = 1.0  # head
+        food_x, food_y = self.food
+        board[food_y, food_x, 3] = 1.0  # food
+        return board.flatten()
 
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
         self.food = tuple(self.np_random.choice(free_cells))
-        self.steps = 0
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size), dtype=np.float32)
