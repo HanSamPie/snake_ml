@@ -88,11 +88,12 @@ class SnakeEnv(gym.Env):
             pos_new, pos_old = self.snake[:2]
 
             if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
-                reward += 0.05  # reward for moving closer
-            #reward += -0.002   # small penalty otherwise  
+                reward += 0.005  # reward for moving closer
+            else:
+                reward += -0.005   # small penalty otherwise  
 
         obs = self._get_obs()
-        return obs, reward, self.done, False, { "length": len(self.snake), "cause":"EoF"}
+        return obs, reward, False, False, { "length": len(self.snake), "cause":"EoF"}
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
