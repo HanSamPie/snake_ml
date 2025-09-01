@@ -32,3 +32,8 @@ register(
     id="Snake-int-v0",
     entry_point="snake_ml.envs.int_encoding.snake_env_0:SnakeEnv",
 )
+register(
+    # based on Snake-one-hot-v0
+    id="Snake-int-v1",
+    entry_point="snake_ml.envs.int_encoding.snake_env_1:SnakeEnv",
+)
