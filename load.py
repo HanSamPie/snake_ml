@@ -1,27 +1,21 @@
-import cProfile
-import pstats
 import gymnasium as gym
 import snake_ml  # this runs register.py automatically
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 import torch
 
-
-def train():
+def load_train():
     env = make_vec_env(env_str, n_envs=n_envs)
-    model = PPO(
-        "MlpPolicy",
-        env,
+    model = PPO.load(
+        path=load_path,
+        env=env,
         device=device,
-        n_steps=n_steps,
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        policy_kwargs=policy_kwargs,
-        verbose=1,
     )
 
     model.learn(total_timesteps=timesteps)
     model.save(save_path)
+
+
 
 def test(max_steps=200, render=True):
     model = PPO.load(save_path)
@@ -43,29 +37,19 @@ def test(max_steps=200, render=True):
 
     env.close()
 
+
 if __name__ == "__main__":
     env_str = "Snake-one-hot-v1"
-    model_name = "hot-large-small-reward"
-    save_path = f"models/one-hot/{model_name}/v1.0.zip"
+    load_version = 1.0
+    load_path = f"hot_large_small-reward_{load_version}.zip"
+    save_version = 1.1
+    save_path = f"hot_large_small-reward_{save_version}.zip"
     device = "cuda"
+    
     timesteps = 10_000_000
-
-    n_envs = 48
-    n_steps = 1024          # rollout per env
-    total_rollout = n_envs * n_steps  # = 16,384
-    batch_size = 2048      # divides 16,384 evenly
-    n_epochs = 10          # you can try 5–8 if speed is critical
-
-    policy_kwargs = dict(
-        net_arch=dict(
-            pi=[512, 512, 256, 128, 64],
-            vf=[512, 512, 256, 128, 64]
-        ),
-        activation_fn=torch.nn.ReLU
-    )
+    ns_env = 48
 
     print("=== Starting Snake PPO Script ===")
-    train()
-    #load_train(env_str)
-    test(max_steps=200000, render=True)
+    load_train()
+    test(max_steps=10000, render=True)
     print("=== Script finished ===")
