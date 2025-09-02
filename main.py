@@ -44,11 +44,11 @@ def test(max_steps=200, render=True):
     env.close()
 
 if __name__ == "__main__":
-    env_str = "Snake-one-hot-v1"
-    model_name = "hot-large-small-reward"
-    save_path = f"models/one-hot/{model_name}/v1.0.zip"
+    env_str = "snake_one-hot"
+    save_path = f"models/{env_str}/v1.0.zip"
     device = "cuda"
-    timesteps = 10_000_000
+    
+    timesteps = 10_000
 
     n_envs = 48
     n_steps = 1024          # rollout per env
