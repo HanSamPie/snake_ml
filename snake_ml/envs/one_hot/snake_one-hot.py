@@ -27,7 +27,7 @@ class SnakeEnv(gym.Env):
         # Observation: 14x14x4 one-hot -> flattened
         self.observation_space = spaces.Box(
             low=0.0, high=1.0,
-            shape=((board_size * board_size * 4) + 1,),
+            shape=((board_size * board_size * 4) ,),
             dtype=np.float32
         )
 
@@ -106,13 +106,13 @@ class SnakeEnv(gym.Env):
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
 
-        # Snake body
-        for x, y in self.snake[1:]:
-            board[y, x, 2] = 1.0
-
         # Snake head
         head_x, head_y = self.snake[0]
         board[head_y, head_x, 1] = 1.0
+        
+        # Snake body
+        for x, y in self.snake[1:]:
+            board[y, x, 2] = 1.0
 
         # Food
         food_x, food_y = self.food
@@ -121,11 +121,7 @@ class SnakeEnv(gym.Env):
         # Flatten the board
         flat_board = board.flatten()
 
-        # Normalize steps_since_food (optional, helps training)
-        steps_feature = np.array([self.steps / (self.board_size * self.board_size)], dtype=np.float32)
-
-        # Concatenate board + extra feature
-        return np.concatenate([flat_board, steps_feature])
+        return flat_board
 
 
     def _place_food(self):

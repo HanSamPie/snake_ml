@@ -4,7 +4,7 @@ from gymnasium.envs.registration import register
 register(
     # rewards death food and win
     id="snake_one-hot",
-    entry_point="snake_ml.envs.one_hot.snake_int:SnakeEnv",
+    entry_point="snake_ml.envs.one_hot.snake_one-hot:SnakeEnv",
 )
 
 # int encoding
