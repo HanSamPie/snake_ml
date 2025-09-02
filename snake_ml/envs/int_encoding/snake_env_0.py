@@ -1,3 +1,4 @@
+import math
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -36,7 +37,6 @@ class SnakeEnv(gym.Env):
         # Internal state
         self.snake = None
         self.food = None
-        self.done = False
         self.direction = 1 # right
 
     def reset(self, seed=None, options=None):
@@ -46,13 +46,18 @@ class SnakeEnv(gym.Env):
         
         self.snake = [(self.board_size // 3, self.board_size // 2)]
         self.food = (2*self.board_size // 3, self.board_size // 2)
+        self.steps = 0
 
-        self.done = False
         obs = self._get_obs()
         return obs, {}
 
     def step(self, action):
         action = int(action)
+
+        self.steps += 1
+        max_steps = self.board_size**2 * 2
+        if self.steps > max_steps:
+            return self._get_obs(), -2.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
 
         opposites = {0: 2, 1: 3, 2: 0, 3: 1}
         if action != opposites[self.direction]:
@@ -67,8 +72,7 @@ class SnakeEnv(gym.Env):
         # Check collisions
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
-            self.done = True
-            reward = -20.0
+            reward = -2.0
             return self._get_obs(), reward, True, False, { "length": len(self.snake), "cause": "collision"}
 
         # Move snake
@@ -76,19 +80,26 @@ class SnakeEnv(gym.Env):
 
         # Check food
         if new_head == self.food:
-            reward = 10.0
+            reward = 1.0
             self._place_food()
 
             # Win condition: snake fills the board
             if len(self.snake) == self.board_size * self.board_size:
-                self.done = True
-                reward = 100.0  # give a big reward for winning
+                reward = 5.0  # give a big reward for winning
                 return self._get_obs(), reward, True, False, { "length": len(self.snake), "cause": "win"}
         else:
-            self.snake.pop()    
+            self.snake.pop()  
+
+        if len(self.snake) > 1:
+            pos_new, pos_old = self.snake[:2]
+
+            if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
+                reward += 0.1 #* (14-math.dist(pos_new, self.food))/14  # reward for moving closer
+            else:
+                reward -= max_steps/(max_steps - self.steps + 1) - 1 # small penalty otherwise  
 
         obs = self._get_obs()
-        return obs, reward, self.done, False, { "length": len(self.snake), "cause":"EoF"}
+        return obs, reward, False, False, { "length": len(self.snake), "cause":"EoF"}
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size, 4), dtype=np.float32)
@@ -103,6 +114,8 @@ class SnakeEnv(gym.Env):
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
         self.food = tuple(self.np_random.choice(free_cells))
+        self.steps = 0
+
 
     def _get_obs(self):
         board = np.zeros((self.board_size, self.board_size), dtype=np.float32)
