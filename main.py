@@ -64,8 +64,8 @@ if __name__ == "__main__":
 
     policy_kwargs = dict(
         net_arch=dict(
-            pi=[512, 512, 256, 128, 64],
-            vf=[512, 512, 256, 128, 64]
+            pi=[1024, 512, 512, 256, 64],
+            vf=[1024, 512, 512, 256, 64]
         ),
         activation_fn=torch.nn.ReLU
     )
