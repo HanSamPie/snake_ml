@@ -6,6 +6,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 import pandas as pd
 from stable_baselines3.common.env_util import make_vec_env
 import gittools as git
+import snake_ml
 
 # ----------------
 # Callback to log episode stats
@@ -62,7 +63,7 @@ class EpisodeLogger(BaseCallback):
 # ----------------
 # Training wrapper
 # ----------------
-def train_model(env_name, save_path, timesteps, **ppo_kwargs):
+def train_model(env_name, save_path, timesteps, ppo_kwargs):
     # Set our tracking server uri for logging
     mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")
 
@@ -70,7 +71,7 @@ def train_model(env_name, save_path, timesteps, **ppo_kwargs):
     mlflow.set_experiment(env_name)
 
     with mlflow.start_run(run_name=f"{env_name}_v{version}"):
-        # log hyperparams
+        #log hyperparams
         for k, v in ppo_kwargs.items():
             if isinstance(v, (dict, list)):
                 mlflow.log_dict(v, f"{k}.json")
@@ -78,18 +79,18 @@ def train_model(env_name, save_path, timesteps, **ppo_kwargs):
                 mlflow.log_param(k, v)
 
         
-        commit = git.current_commit_hash(checkdirty=True, checktree=True)
+        commit = git.current_commit_hash(checkdirty=False, checktree=True)
         mlflow.log_param("git_commit", commit)
 
         # build vectorized env
-        n_envs = ppo_kwargs.get("n_envs")
         env = make_vec_env(env_name, n_envs=n_envs)
 
         # init PPO
         model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
 
         # train
-        model.learn(total_timesteps=timesteps, callback=EpisodeLogger())
+        # model.learn(total_timesteps=timesteps, callback=EpisodeLogger())
+        model.learn(total_timesteps=timesteps)
 
         # save model + log
         model.save(save_path)
@@ -102,13 +103,16 @@ def train_model(env_name, save_path, timesteps, **ppo_kwargs):
 # Example usage with two models
 # ----------------
 if __name__ == "__main__":
-    env_str = "snake_one-hot"
+    import torch
+    from multiprocessing import Process
+
     version = 1.0
     save_path1 = f"models/snake_one-hot/v{version}.zip"
     save_path2 = f"models/snake_int/v{version}.zip"
     device = "cuda"
+    n_envs = 48
 
-    onehot_policy=dict(
+    onehot_policy = dict(
         net_arch=dict(
             pi=[1024, 512, 512, 256, 64],
             vf=[1024, 512, 512, 256, 64],
@@ -116,7 +120,7 @@ if __name__ == "__main__":
         activation_fn=torch.nn.ReLU
     )
 
-    int_policy=dict(
+    int_policy = dict(
         net_arch=dict(
             pi=[256, 256, 256, 128, 64],
             vf=[256, 256, 256, 128, 64],
@@ -124,8 +128,7 @@ if __name__ == "__main__":
         activation_fn=torch.nn.ReLU
     )
 
-    ppo_kwargs = dict(
-        n_envs=32,
+    base_kwargs = dict(
         n_steps=1024,
         batch_size=2048,
         n_epochs=10,
@@ -134,21 +137,18 @@ if __name__ == "__main__":
         gae_lambda=0.95,
         clip_range=0.2,
         vf_coef=0.5,
-        
         device=device,
     )
 
-    onehot_hyper_para = ppo_kwargs['policy_kwargs'] = onehot_policy
-    int_hyper_para = ppo_kwargs['policy_kwargs'] = int_policy
-
     timesteps = 1_000_000
 
-    # train both models in parallel processes
-    from multiprocessing import Process
+    # different kwargs for each policy
+    onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
+    int_kwargs = dict(base_kwargs, policy_kwargs=int_policy)
 
     jobs = []
-    jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps), kwargs=onehot_hyper_para))
-    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps), kwargs=int_hyper_para))
+    jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps), kwargs={'ppo_kwargs': onehot_kwargs}))
+    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps), kwargs={'ppo_kwargs': int_kwargs}))
 
     for j in jobs: j.start()
     for j in jobs: j.join()
