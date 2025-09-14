@@ -64,8 +64,6 @@ class SnakeEnv(gym.Env):
         head_x, head_y = self.snake[0]
         new_head = (head_x + dx, head_y + dy)
 
-        reward = 0.0
-
         # Check collisions
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
