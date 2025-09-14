@@ -5,7 +5,6 @@ import snake_ml  # this runs register.py automatically
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 import torch
-from version_control import version_control
 
 def train():
     env = make_vec_env(env_str, n_envs=n_envs)
@@ -22,7 +21,6 @@ def train():
 
     model.learn(total_timesteps=timesteps)
     model.save(save_path)
-    version_control(env_str)
 
 def test(max_steps=200, render=True):
     model = PPO.load(save_path)
@@ -63,9 +61,9 @@ if __name__ == "__main__":
     vf_coef: float = 0.5
 
     policy_kwargs = dict(
-        net_arch=dict(
-            pi=[1024, 512, 512, 256, 64],
-            vf=[1024, 512, 512, 256, 64]
+        net_arch = dict(
+            pi = [1024, 512, 512, 256, 64],
+            vf = [1024, 512, 512, 256, 64]
         ),
         activation_fn=torch.nn.ReLU
     )
@@ -75,5 +73,10 @@ if __name__ == "__main__":
     print("=== Starting Snake PPO Script ===")
     train()
     #load_train(env_str)
-    test(max_steps=200000, render=True)
+    test(max_steps=2000, render=True)
     print("=== Script finished ===")
+
+
+
+import gittools as git
+commit = git.current_commit_hash(checkdirty=True, checktree=True)
