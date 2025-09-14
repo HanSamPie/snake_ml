@@ -1,82 +1,154 @@
-import cProfile
-import pstats
-import gymnasium as gym
-import snake_ml  # this runs register.py automatically
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
+import mlflow
 import torch
+from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import BaseCallback
+import pandas as pd
+from stable_baselines3.common.env_util import make_vec_env
+import gittools as git
 
-def train():
-    env = make_vec_env(env_str, n_envs=n_envs)
-    model = PPO(
-        "MlpPolicy",
-        env,
-        device=device,
-        n_steps=n_steps,
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        policy_kwargs=policy_kwargs,
-        verbose=1,
-    )
+# ----------------
+# Callback to log episode stats
+# ----------------
+class EpisodeLogger(BaseCallback):
+    def __init__(self, log_every=100, save_path="episode_stats.parquet"):
+        super().__init__()
+        self.episode_rewards = []
+        self.episode_lengths = []
+        self.episode_causes = []
+        self.buffer = []
+        self.save_path = save_path
+        self.log_every = log_every
+        self.episode_id = 0
 
-    model.learn(total_timesteps=timesteps)
-    model.save(save_path)
+    def _on_step(self) -> bool:
+        # `infos` is a list (for VecEnvs). Here we take the first env.
+        info = self.locals["infos"][0]
+        done = self.locals["dones"][0]
 
-def test(max_steps=200, render=True):
-    model = PPO.load(save_path)
+        if done:
+            self.episode_id += 1
+            reward = info.get("episode_reward", 0)
+            length = info.get("episode_length", 0)
+            cause = info.get("cause", "unknown")
 
-    env = gym.make(env_str, render_mode="human")
-    
-    obs, info = env.reset()
-    for step in range(max_steps):
-        # Model predicts an action
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.step(action)
+            row = {
+                "episode_id": self.episode_id,
+                "timesteps": self.num_timesteps,
+                "reward": reward,
+                "length": length,
+                "cause": cause,
+            }
+            self.buffer.append(row)
+
+            # Log running metrics to MLflow
+            mlflow.log_metric("episode_reward", reward, step=self.num_timesteps)
+            mlflow.log_metric("episode_length", length, step=self.num_timesteps)
+
+            # Periodically flush to disk
+            # if len(self.buffer) >= self.log_every:
+            #     df = pd.DataFrame(self.buffer)
+            #     df.to_parquet(self.save_path, engine="pyarrow", append=True if self.episode_id > self.log_every else False)
+            #     self.buffer = []
+
+        return True
+
+    def _on_training_end(self):
+        if self.buffer:
+            df = pd.DataFrame(self.buffer)
+            df.to_parquet(self.save_path, engine="pyarrow")
+
+
+# ----------------
+# Training wrapper
+# ----------------
+def train_model(env_name, save_path, timesteps, **ppo_kwargs):
+    # Set our tracking server uri for logging
+    mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")
+
+    # Create a new MLflow Experiment
+    mlflow.set_experiment(env_name)
+
+    with mlflow.start_run(run_name=f"{env_name}_v{version}"):
+        # log hyperparams
+        for k, v in ppo_kwargs.items():
+            if isinstance(v, (dict, list)):
+                mlflow.log_dict(v, f"{k}.json")
+            else:
+                mlflow.log_param(k, v)
+
         
-        if render:
-            env.render()
-        
-        if terminated or truncated or step == max_steps - 1:
-            print(f"Episode ended after {step+1} steps, reward={reward}, info={info}")
-            break
+        commit = git.current_commit_hash(checkdirty=True, checktree=True)
+        mlflow.log_param("git_commit", commit)
 
-    env.close()
+        # build vectorized env
+        n_envs = ppo_kwargs.get("n_envs")
+        env = make_vec_env(env_name, n_envs=n_envs)
 
+        # init PPO
+        model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
+
+        # train
+        model.learn(total_timesteps=timesteps, callback=EpisodeLogger())
+
+        # save model + log
+        model.save(save_path)
+        mlflow.log_artifact(save_path)
+
+        env.close()
+
+
+# ----------------
+# Example usage with two models
+# ----------------
 if __name__ == "__main__":
     env_str = "snake_one-hot"
     version = 1.0
-    save_path = f"models/{env_str}/v{version}.zip"
+    save_path1 = f"models/snake_one-hot/v{version}.zip"
+    save_path2 = f"models/snake_int/v{version}.zip"
     device = "cuda"
 
-    n_envs = 48
-    n_steps = 1024          # rollout per env
-    batch_size = 2048      # divides 16,384 evenly
-    n_epochs = 10          # you can try 5–8 if speed is critical
-    
-    # hyper parameters
-    learning_rate: float = 0.0003
-    gamma: float = 0.99
-    gae_lambda: float = 0.95
-    clip_range: float  = 0.2
-    vf_coef: float = 0.5
-
-    policy_kwargs = dict(
-        net_arch = dict(
-            pi = [1024, 512, 512, 256, 64],
-            vf = [1024, 512, 512, 256, 64]
+    onehot_policy=dict(
+        net_arch=dict(
+            pi=[1024, 512, 512, 256, 64],
+            vf=[1024, 512, 512, 256, 64],
         ),
         activation_fn=torch.nn.ReLU
     )
 
-    timesteps = 10_000
+    int_policy=dict(
+        net_arch=dict(
+            pi=[256, 256, 256, 128, 64],
+            vf=[256, 256, 256, 128, 64],
+        ),
+        activation_fn=torch.nn.ReLU
+    )
 
-    print("=== Starting Snake PPO Script ===")
-    train()
-    #load_train(env_str)
-    test(max_steps=2000, render=True)
-    print("=== Script finished ===")
+    ppo_kwargs = dict(
+        n_envs=32,
+        n_steps=1024,
+        batch_size=2048,
+        n_epochs=10,
+        learning_rate=0.0003,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        vf_coef=0.5,
+        
+        device=device,
+    )
 
+    onehot_hyper_para = ppo_kwargs['policy_kwargs'] = onehot_policy
+    int_hyper_para = ppo_kwargs['policy_kwargs'] = int_policy
 
+    timesteps = 1_000_000
 
-import gittools as git
-commit = git.current_commit_hash(checkdirty=True, checktree=True)
+    # train both models in parallel processes
+    from multiprocessing import Process
+
+    jobs = []
+    jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps), kwargs=onehot_hyper_para))
+    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps), kwargs=int_hyper_para))
+
+    for j in jobs: j.start()
+    for j in jobs: j.join()
