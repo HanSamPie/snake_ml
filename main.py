@@ -1,64 +1,11 @@
 import mlflow
 import torch
 from stable_baselines3 import PPO
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import BaseCallback
-import pandas as pd
+from stable_baselines3.common.callbacks import CheckpointCallback
+
 from stable_baselines3.common.env_util import make_vec_env
 import gittools as git
 import snake_ml
-
-# ----------------
-# Callback to log episode stats
-# ----------------
-class EpisodeLogger(BaseCallback):
-    def __init__(self, log_every=100, save_path="episode_stats.parquet"):
-        super().__init__()
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.episode_causes = []
-        self.buffer = []
-        self.save_path = save_path
-        self.log_every = log_every
-        self.episode_id = 0
-
-    def _on_step(self) -> bool:
-        # `infos` is a list (for VecEnvs). Here we take the first env.
-        info = self.locals["infos"][0]
-        done = self.locals["dones"][0]
-
-        if done:
-            self.episode_id += 1
-            reward = info.get("episode_reward", 0)
-            length = info.get("episode_length", 0)
-            cause = info.get("cause", "unknown")
-
-            row = {
-                "episode_id": self.episode_id,
-                "timesteps": self.num_timesteps,
-                "reward": reward,
-                "length": length,
-                "cause": cause,
-            }
-            self.buffer.append(row)
-
-            # Log running metrics to MLflow
-            mlflow.log_metric("episode_reward", reward, step=self.num_timesteps)
-            mlflow.log_metric("episode_length", length, step=self.num_timesteps)
-
-            # Periodically flush to disk
-            # if len(self.buffer) >= self.log_every:
-            #     df = pd.DataFrame(self.buffer)
-            #     df.to_parquet(self.save_path, engine="pyarrow", append=True if self.episode_id > self.log_every else False)
-            #     self.buffer = []
-
-        return True
-
-    def _on_training_end(self):
-        if self.buffer:
-            df = pd.DataFrame(self.buffer)
-            df.to_parquet(self.save_path, engine="pyarrow")
-
 
 # ----------------
 # Training wrapper
@@ -79,7 +26,7 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs):
                 mlflow.log_param(k, v)
 
         
-        commit = git.current_commit_hash(checkdirty=False, checktree=True)
+        commit = git.current_commit_hash(checkdirty=True, checktree=True)
         mlflow.log_param("git_commit", commit)
 
         # build vectorized env
@@ -88,9 +35,10 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs):
         # init PPO
         model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
 
+        checkpoint_callback = CheckpointCallback(save_freq=1_000_000, save_path=save_path)
+
         # train
-        # model.learn(total_timesteps=timesteps, callback=EpisodeLogger())
-        model.learn(total_timesteps=timesteps)
+        model.learn(total_timesteps=timesteps, callback=checkpoint_callback)
 
         # save model + log
         model.save(save_path)
@@ -107,8 +55,8 @@ if __name__ == "__main__":
     from multiprocessing import Process
 
     version = 1.0
-    save_path1 = f"models/snake_one-hot/v{version}.zip"
-    save_path2 = f"models/snake_int/v{version}.zip"
+    save_path1 = f"models/snake_one-hot/v{version}"
+    save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
     n_envs = 48
 
