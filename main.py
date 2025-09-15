@@ -35,14 +35,14 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs):
         # init PPO
         model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
 
-        checkpoint_callback = CheckpointCallback(save_freq=1_000_000, save_path=save_path)
+        checkpoint_callback = CheckpointCallback(save_freq=1_000_000, save_path=f'{save_path}/', name_prefix='model')
 
         # train
         model.learn(total_timesteps=timesteps, callback=checkpoint_callback)
 
         # save model + log
-        model.save(save_path)
-        mlflow.log_artifact(save_path)
+        model.save(f'{save_path}/model.zip')
+        mlflow.log_artifact(f'{save_path}/model.zip')
 
         env.close()
 
