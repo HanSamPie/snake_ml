@@ -35,7 +35,7 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs):
         # init PPO
         model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
 
-        checkpoint_callback = CheckpointCallback(save_freq=1_000_000, save_path=f'{save_path}/', name_prefix='model')
+        checkpoint_callback = CheckpointCallback(save_freq=1_00_000, save_path=f'{save_path}/', name_prefix='model')
 
         # train
         model.learn(total_timesteps=timesteps, callback=checkpoint_callback)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 20_000_000
+    timesteps = 1_000_000
 
     # different kwargs for each policy
     onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
