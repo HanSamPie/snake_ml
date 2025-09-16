@@ -1,5 +1,6 @@
-torch @ https://download.pytorch.org/whl/rocm6.4
+torch #@ https://download.pytorch.org/whl/rocm6.4
 stable-baselines3[extra]
 gymnasium
 rich
 mlflow
+gittools
