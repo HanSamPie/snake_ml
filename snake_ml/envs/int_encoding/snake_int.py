@@ -46,7 +46,7 @@ class SnakeEnv(gym.Env):
         self.steps_since_food = 0
 
         obs = self._get_obs()
-        return obs, {}
+        return obs, {"steps_since_food": self.steps_since_food}
 
     def step(self, action):
         action = int(action)

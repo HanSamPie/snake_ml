@@ -33,7 +33,8 @@ def test_model(model_path, max_steps, num_episodes):
     
     for _ in range(num_episodes):
         obs, info = env.reset()
-        
+        #TODO add data tracking for first state
+
         while(True):
             # Model predicts an action
             action, _ = model.predict(obs, deterministic=True)
