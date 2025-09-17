@@ -31,20 +31,22 @@ def test_model(model_path, max_steps, num_episodes):
     model = PPO.load(model_path)
     env = gym.make(env_str, render_mode="human")
     
-    obs, info = env.reset()
-    for step in range(max_steps):
-        # Model predicts an action
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.step(action)
+    for _ in range(num_episodes):
+        obs, info = env.reset()
         
-        if terminated or truncated or step == max_steps - 1:
-            print(f"Episode ended after {step+1} steps, reward={reward}, info={info}")
-            break
+        while(True):
+            # Model predicts an action
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            
+            if terminated or truncated or info['steps_since_food'] >= max_steps:
+                # TODO add data tracking
+                break
 
     env.close()
 
 if __name__ == '__main__':
-    max_steps = 14*14*1.5
+    max_steps = 14*14*2
     num_episodes = 100
 
     model_dir = './models'
@@ -64,7 +66,7 @@ if __name__ == '__main__':
                                         num_episodes=num_episodes
                                     )
     
-        with Pool() as pool:
+        with Pool(processes=os.cpu_count()) as pool:
             results.append(list(pool.imap_unordered(partial_test_model, version_list)))
     
     print(results)

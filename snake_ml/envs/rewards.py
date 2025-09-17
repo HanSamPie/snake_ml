@@ -1,12 +1,12 @@
 class Rewards():
     def alive(self, env)->tuple[float, bool, dict]: 
-        return 0.0, False, False, {}
+        return 0.0, False, False, {"steps_since_food": env.steps_since_food}
     
     def foodReward(self, env)->tuple[float, bool, dict]:
-        return 2.0, False, False, {}
+        return 2.0, False, False, {"steps_since_food": env.steps_since_food}
     
     def winReward(self, env)->tuple[float, bool, dict]:
-        return 5.0, True, False, {}
+        return 5.0, True, False, {"steps_since_food": env.steps_since_food}
 
     #TODO    
     # def distanceReward(self, env)->tuple[float, bool, dict]:
@@ -14,7 +14,7 @@ class Rewards():
 
 
     def deathPenalty(self, env)->tuple[float, bool, dict]:
-        return -1.0, True, False, {}
+        return -1.0, True, False, {"steps_since_food": env.steps_since_food}
     
     #TODO
     # def distancePenalty(self, env)->tuple[float, bool, dict]:

@@ -43,7 +43,7 @@ class SnakeEnv(gym.Env):
         
         self.snake = [(self.board_size // 3, self.board_size // 2)]
         self.food = (2*self.board_size // 3, self.board_size // 2)
-        self.steps = 0
+        self.steps_since_food = 0
 
         obs = self._get_obs()
         return obs, {}
@@ -51,10 +51,10 @@ class SnakeEnv(gym.Env):
     def step(self, action):
         action = int(action)
 
-        # self.steps += 1
-        # max_steps = self.board_size**2 * 2
-        # if self.steps > max_steps:
-        #     return self._get_obs(), -2.0, True, False, { "length": len(self.snake), "cause": "Too many steps"}
+        self.steps_since_food += 1
+        # max_steps_since_food = self.board_size**2 * 2
+        # if self.steps_since_food > max_steps_since_food:
+        #     return self._get_obs(), -2.0, True, False, { "length": len(self.snake), "cause": "Too many steps_since_food"}
 
         opposites = {0: 2, 1: 3, 2: 0, 3: 1}
         if action != opposites[self.direction]:
@@ -91,7 +91,7 @@ class SnakeEnv(gym.Env):
         #     if math.dist(pos_new, self.food) < math.dist(pos_old, self.food):
         #         reward += 0.1 #* (14-math.dist(pos_new, self.food))/14  # reward for moving closer
         #     else:
-        #         reward -= max_steps/(max_steps - self.steps + 1) - 1 # small penalty otherwise  
+        #         reward -= max_steps_since_food/(max_steps_since_food - self.steps_since_food + 1) - 1 # small penalty otherwise  
 
         return self._get_obs(), *self.rw.alive(self)
     
@@ -99,7 +99,7 @@ class SnakeEnv(gym.Env):
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
         self.food = tuple(self.np_random.choice(free_cells))
-        self.steps = 0
+        self.steps_since_food = 0
 
 
     def _get_obs(self):
