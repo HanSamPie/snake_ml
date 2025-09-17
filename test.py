@@ -1,5 +1,12 @@
 import os
+from pathlib import Path
+
+from stable_baselines3 import PPO
+import gymnasium as gym
+
+from functools import partial
 from multiprocessing import Pool
+
 
 def results_exist(versions):
     """
@@ -16,11 +23,30 @@ def results_exist(versions):
             models.append(names)
     return models, data
 
-def test_model(model_path):
-    pass
-    #return data
+def test_model(model_path, max_steps, num_episodes):    
+    path = Path(model_path)
+
+    env_str = path.parts[-3]
+
+    model = PPO.load(model_path)
+    env = gym.make(env_str, render_mode="human")
+    
+    obs, info = env.reset()
+    for step in range(max_steps):
+        # Model predicts an action
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, terminated, truncated, info = env.step(action)
+        
+        if terminated or truncated or step == max_steps - 1:
+            print(f"Episode ended after {step+1} steps, reward={reward}, info={info}")
+            break
+
+    env.close()
 
 if __name__ == '__main__':
+    max_steps = 14*14*1.5
+    num_episodes = 100
+
     model_dir = './models'
     models_types = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
     
@@ -31,15 +57,19 @@ if __name__ == '__main__':
     ]
     
     version_collection, result_files = results_exist(versions)
-
+    results = []
     for version_list in version_collection:
-        
-        for model in version_list:
-            with Pool() as pool:
-                results = list(pool.imap_unordered(test_model, models_types))
+        partial_test_model = partial(test_model, 
+                                        max_steps=max_steps,
+                                        num_episodes=num_episodes
+                                    )
+    
+        with Pool() as pool:
+            results.append(list(pool.imap_unordered(partial_test_model, version_list)))
+    
+    print(results)
 
 
-# import gymnasium as gym
 # import snake_ml  # this runs register.py automatically
 # from stable_baselines3 import PPO
 # from stable_baselines3.common.env_util import make_vec_env
