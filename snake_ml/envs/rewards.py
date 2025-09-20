@@ -61,9 +61,9 @@ class Rewards():
 
     def deathPenalty(self, env, new_head: tuple)->tuple[float, bool, dict]:
         cause = ""
-        if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)):
+        if (not (0 <= new_head[0] < env.board_size and 0 <= new_head[1] < env.board_size)):
             cause = "border"
-        elif new_head in self.snake:
+        elif new_head in env.snake:
             cause = "snake"
             
         return -1.0, True, False, {

@@ -71,7 +71,7 @@ class SnakeEnv(gym.Env):
         # Check collisions
         if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)) \
             or new_head in self.snake:
-            return self._get_obs(), *self.rw.deathPenalty(self)
+            return self._get_obs(), *self.rw.deathPenalty(self, new_head)
 
         # Move snake
         self.snake.insert(0, new_head)
