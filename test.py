@@ -1,3 +1,5 @@
+import cProfile
+import json
 import os
 from pathlib import Path
 
@@ -6,7 +8,7 @@ import gymnasium as gym
 
 from functools import partial
 from multiprocessing import Pool
-
+import snake_ml
 
 def results_exist(versions):
     """
@@ -29,29 +31,52 @@ def test_model(model_path, max_steps, num_episodes):
     env_str = path.parts[-3]
 
     model = PPO.load(model_path)
-    env = gym.make(env_str, render_mode="human")
+    env = gym.make(env_str, render_mode=None)
     
-    for _ in range(num_episodes):
-        obs, info = env.reset()
+    episodes = {}
+    episodes['env'] = env_str
+    episodes['path'] = model_path
+    episodes['results'] = []
 
-        total_reward = []
-        #TODO add data tracking for first state
-        while(True):
-            # Model predicts an action
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
+    # for i in range(num_episodes):
+    #     obs, info = env.reset()
+
+    #     total_reward = 0.0
+    #     food_info = []
+    #     death_info = {}
+    #     #TODO add data tracking for first state
+    #     while(True):
+    #         # Model predicts an action
+    #         action, _ = model.predict(obs, deterministic=True)
+    #         obs, reward, terminated, truncated, info = env.step(action)
             
-            total_reward += reward
+    #         total_reward += reward
+    #         if "path" in info:
+    #             food_info.append(info)
+    #         elif "death" in info:
+    #             death_info = info
 
-            if terminated or truncated or info['steps_since_food'] >= max_steps:
-                # TODO add data tracking
-                break
+    #         if terminated or truncated or info['steps_since_food'] >= max_steps:
+    #             episode_data = {
+    #                 "episode_id": i,
+    #                 "food_info": food_info, 
+    #                 "death_info": death_info, 
+    #                 "total_reward": total_reward 
+    #             }
+    #             # Append the dictionary to the results list
+    #             episodes['results'].append(episode_data)
+    #             break
 
     env.close()
+    print(f"Finished run for: {model_path}")
+    return episodes
 
 if __name__ == '__main__':
+    profiler = cProfile.Profile()
+    profiler.enable()
+    
     max_steps = 14*14*2
-    num_episodes = 100
+    num_episodes = 1
 
     model_dir = './models'
     models_types = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
@@ -65,15 +90,22 @@ if __name__ == '__main__':
     version_collection, result_files = results_exist(versions)
     results = []
     for version_list in version_collection:
+        print("Working on version List:")
+        print(version_list)
         partial_test_model = partial(test_model, 
                                         max_steps=max_steps,
                                         num_episodes=num_episodes
                                     )
     
-        with Pool(processes=os.cpu_count()) as pool:
+        with Pool(processes=int(os.cpu_count()/2)) as pool:
             results.append(list(pool.imap_unordered(partial_test_model, version_list)))
     
-    print(results)
+    with open('data.json', 'w') as file:
+        json.dump(results, file)
+
+    profiler.disable()
+    profiler.dump_stats("profiler_results.prof")
+    profiler.print_stats(sort="time")
 
 
 # score distribution -> track score at death
