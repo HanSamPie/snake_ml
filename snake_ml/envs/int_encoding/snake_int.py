@@ -43,6 +43,8 @@ class SnakeEnv(gym.Env):
         
         self.snake = [(self.board_size // 3, self.board_size // 2)]
         self.food = (2*self.board_size // 3, self.board_size // 2)
+        self.head_new_food = self.snake[0]
+        self.inputs_since_food = 0
         self.steps_since_food = 0
 
         obs = self._get_obs()
@@ -59,6 +61,8 @@ class SnakeEnv(gym.Env):
         opposites = {0: 2, 1: 3, 2: 0, 3: 1}
         if action != opposites[self.direction]:
             self.direction = action
+            self.inputs_since_food += 1
+
 
         dx, dy = ACTION_MAP[self.direction]
         head_x, head_y = self.snake[0]
@@ -99,6 +103,8 @@ class SnakeEnv(gym.Env):
     def _place_food(self):
         free_cells = [(x, y) for x in range(self.board_size) for y in range(self.board_size) if (x, y) not in self.snake]
         self.food = tuple(self.np_random.choice(free_cells))
+        self.head_new_food = self.snake[0]
+        self.inputs_since_food = 0
         self.steps_since_food = 0
 
 

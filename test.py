@@ -10,7 +10,7 @@ from multiprocessing import Pool
 
 def results_exist(versions):
     """
-    returns list of lists, where one list contians all the models of one version
+    returns list of lists, where one list contains all the models of one version
     """
     models = []
     data = []
@@ -89,5 +89,5 @@ if __name__ == '__main__':
 
 # inputs to score n -> track inputs since last apple
 # can provide insights into the number of evasive maneuvers taken 
-# (though a stair movment is just as effective in reducing distance as a simple 90° and are therefore not as 
+# (though a stair movement is just as effective in reducing distance as a simple 90° and are therefore not as 
 # conclusive to performance and depend more on the reward function and training method)

@@ -11,7 +11,7 @@
 
 # inputs to score n -> track inputs since last apple
 # can provide insights into the number of evasive maneuvers taken 
-# (though a stair movment is just as effective in reducing distance as a simple 90° and are therefore not as 
+# (though a stair movement is just as effective in reducing distance as a simple 90° and are therefore not as 
 # conclusive to performance and depend more on the reward function and training method)
 
 class Rewards():
@@ -21,13 +21,37 @@ class Rewards():
         }
     
     def foodReward(self, env)->tuple[float, bool, dict]:
+        x_old, y_old = env.head_new_food
+        x_food, y_food = env.snake[0]
+        
+        opt_path = abs(x_old - x_food) + abs(y_old - y_food)
+
         return 2.0, False, False, {
-            "steps_since_food": env.steps_since_food
+            "steps_since_food": env.steps_since_food,
+            "path": {
+                "optimal_path": opt_path,
+                "actual_path": env.steps_since_food,
+                "fruit_num": len(env.snake)
+            },
+            "score": len(env.snake),
+            "num_inputs": env.inputs_since_food
         }
     
     def winReward(self, env)->tuple[float, bool, dict]:
+        x_old, y_old = env.head_new_food
+        x_food, y_food = env.snake[0]
+        
+        opt_path = abs(x_old - x_food) + abs(y_old - y_food)
+        
         return 5.0, True, False, {
-            "steps_since_food": env.steps_since_food
+            "steps_since_food": env.steps_since_food,
+            "path": {
+                "optimal_path": opt_path,
+                "actual_path": env.steps_since_food,
+                "fruit_num": len(env.snake)
+            },
+            "score": len(env.snake),
+            "num_inputs": env.inputs_since_food
         }
 
     #TODO    
@@ -35,9 +59,20 @@ class Rewards():
     #     return 2.0, False, {}
 
 
-    def deathPenalty(self, env)->tuple[float, bool, dict]:
+    def deathPenalty(self, env, new_head: tuple)->tuple[float, bool, dict]:
+        cause = ""
+        if (not (0 <= new_head[0] < self.board_size and 0 <= new_head[1] < self.board_size)):
+            cause = "border"
+        elif new_head in self.snake:
+            cause = "snake"
+            
         return -1.0, True, False, {
-            "steps_since_food": env.steps_since_food
+            "steps_since_food": env.steps_since_food,
+            "score": len(env.snake),
+            "death": {
+                "cause": cause,
+                "position": new_head
+            }
         }
     
     #TODO
