@@ -6,6 +6,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 import gittools as git
 import snake_ml
+from test import test_all
 
 # ----------------
 # Training wrapper
@@ -88,7 +89,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 20_000_000
+    timesteps = 1_000_000
 
     # different kwargs for each policy
     onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
@@ -100,3 +101,10 @@ if __name__ == "__main__":
 
     for j in jobs: j.start()
     for j in jobs: j.join()
+
+    max_steps = 14*14*2
+    num_episodes = 100
+
+    model_dir = './models'
+
+    test_all(max_steps, num_episodes, model_dir)
