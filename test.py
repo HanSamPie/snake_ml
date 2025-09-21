@@ -1,4 +1,3 @@
-import cProfile
 from functools import partial
 import json
 import os
@@ -12,7 +11,7 @@ import snake_ml
 # Avoid oversubscription
 torch.set_num_threads(1)
 
-def results_exist(versions):
+def data_exist(versions):
     """
     returns list of lists, where one list contains all the models of one version
     """
@@ -20,18 +19,17 @@ def results_exist(versions):
     data = []
     for version in versions:
         files = os.listdir(version)
-        if 'results.json' in files:
-            data.append(os.path.join(version, 'results.json'))
+        if 'data.json' in files:
+            data.append(os.path.join(version, 'data.json'))
         else:
             names = [os.path.join(version, f) for f in os.listdir(version)]
             models.append(names)
     return models, data
 
+
 def env_from_path(model_path: Path):
     """
     Decide which env to create based on the checkpoint path.
-    Example: path/.../one-hot/... → "SnakeOneHot-v0"
-             path/.../int/...     → "SnakeInt-v0"
     """
     parts = [p.lower() for p in model_path.parts]
     if "snake_one-hot" in parts:
@@ -88,31 +86,7 @@ def test_model(model_path, max_steps, num_episodes):
     return episodes
 
 
-def evaluate_all(model_paths, max_steps, num_episodes, batch_size=4):
-    """
-    Process checkpoints in small batches to reduce resource contention.
-    """
-    all_results = {}
-    for i in range(0, len(model_paths), batch_size):
-        batch = model_paths[i:i + batch_size]
-        with Pool(processes=batch_size) as pool:
-            batch_results = pool.starmap(
-                test_model,
-                [(m, max_steps, num_episodes) for m in batch]
-            )
-        for m, r in zip(batch, batch_results):
-            all_results[m] = r
-    return all_results
-
-
-if __name__ == "__main__":
-    profiler = cProfile.Profile()
-    profiler.enable()
-    
-    max_steps = 14*14*2
-    num_episodes = 100
-
-    model_dir = './models'
+def test_all(max_steps, num_episodes, model_dir):
     models_types = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
     
     versions = [
@@ -121,7 +95,7 @@ if __name__ == "__main__":
         for f in os.listdir(model_type)
     ]
     
-    version_collection, result_files = results_exist(versions)
+    version_collection, result_files = data_exist(versions)
     results = []
     for version_list in version_collection:
         print("Working on version List:")
@@ -134,9 +108,15 @@ if __name__ == "__main__":
         with Pool(processes=int(os.cpu_count())) as pool:
             results.append(list(pool.imap_unordered(partial_test_model, version_list)))
     
-    with open('data.json', 'w') as file:
+    with open('results.json', 'w') as file:
         json.dump(results, file)
 
-    profiler.disable()
-    profiler.dump_stats("profiler_results.prof")
-    profiler.print_stats(sort="time")
+if __name__ == "__main__":
+
+    max_steps = 14*14*2
+    num_episodes = 100
+
+    model_dir = './models'
+
+    test_all(max_steps, num_episodes, model_dir)
+    
