@@ -89,7 +89,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 1_000_000
+    timesteps = 300_000_000
 
     # different kwargs for each policy
     onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
