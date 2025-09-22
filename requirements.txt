@@ -4,3 +4,4 @@ gymnasium
 rich
 mlflow
 gittools
+seaborn
