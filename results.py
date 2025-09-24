@@ -1,7 +1,7 @@
 from collections import defaultdict
 import json
 from pathlib import Path
-import seaborn
+import seaborn as sns
 
 def get_steps(data):
     fname = Path(data["path"]).name
@@ -75,6 +75,11 @@ def aggregate_checkpoints_data(checkpoints):
             position = data['death_info']['death']['position']
             if position is not None:
                 death_positions.append(position)
+        death_causes['deprecated'] = num_deprecated
+
+        NUM_EPISODES = 100
+        if not sum(death_causes.values()) == NUM_EPISODES:
+            raise RuntimeError(f"More than or less then {NUM_EPISODES} death causes: {sum(death_causes.values())}")
 
         # Calculate path efficiency ratios for each fruit
         path_ratios_by_fruit = defaultdict(list)
@@ -97,6 +102,7 @@ def aggregate_checkpoints_data(checkpoints):
             "checkpoint_path": checkpoint['path'],
             "total_episodes": len(all_episode_data),
             "num_deprecated": num_deprecated,
+            "score_distribution": scores,
             "mean_score": mean_score,
             "mean_reward": mean_reward,
             "death_causes": dict(death_causes),
@@ -110,7 +116,12 @@ def aggregate_checkpoints_data(checkpoints):
 def learning_graphs(data):
     results = []
     for version in data:
-        results = aggregate_checkpoints_data(version)
+        results.append(list(aggregate_checkpoints_data(version)))
+    
+    with open('aggregate-data.json', 'w') as file:
+        json.dump(results, file, indent=2)
+
+    
 
 
 def result_graphs(data):
