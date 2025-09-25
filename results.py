@@ -1,24 +1,8 @@
 from collections import defaultdict
 import json
 from pathlib import Path
+import pandas as pd
 import seaborn as sns
-
-def get_steps(data):
-    fname = Path(data["path"]).name
-    if fname == "model.zip":
-        return float("inf")  # put final model last
-    if "steps" in fname:
-        return int(fname.split("_")[1])  # extract step number
-    print('fuck: get_steps')
-    return -1  # fallback if format unexpected
-
-
-def sort_by_steps(data):
-    versions = []
-    for version in data:
-        sorted_version = sorted(version, key=get_steps)
-        versions.append(sorted_version)
-    return versions
 
 
 def data_per_episode(episode):
@@ -111,17 +95,34 @@ def aggregate_checkpoints_data(checkpoints):
         }
 
 
+def get_steps(data):
+    fname = Path(data["path"]).name
+    if fname == "model.zip":
+        return float("inf")  # put final model last
+    if "steps" in fname:
+        return int(fname.split("_")[1])  # extract step number
+    print('fuck: get_steps')
+    return -1  # fallback if format unexpected
+
+
+def data_to_frame(version: dict) -> pd.DataFrame:
+    sorted_version = sorted(version, key=get_steps)
+    
+
+    pass 
 
 
 def learning_graphs(data):
-    results = []
+    aggregated_data = []
     for version in data:
-        results.append(list(aggregate_checkpoints_data(version)))
-    
-    with open('aggregate-data.json', 'w') as file:
-        json.dump(results, file, indent=2)
+        aggregated_data.append(list(aggregate_checkpoints_data(version)))
 
-    
+    data_frames = []
+    for version in aggregated_data:
+        data_to_frame(version)
+
+    with open('aggregated-data.json', 'w') as file:
+        json.dump(aggregated_data, file, indent=2)
 
 
 def result_graphs(data):
