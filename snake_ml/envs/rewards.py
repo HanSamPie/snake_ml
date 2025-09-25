@@ -31,9 +31,9 @@ class Rewards():
             "path": {
                 "optimal_path": opt_path,
                 "actual_path": env.steps_since_food,
-                "fruit_num": len(env.snake)
+                "fruit_num": len(env.snake) - 1
             },
-            "score": len(env.snake),
+            "score": len(env.snake) - 1,
             "num_inputs": env.inputs_since_food
         }
     
@@ -48,9 +48,9 @@ class Rewards():
             "path": {
                 "optimal_path": opt_path,
                 "actual_path": env.steps_since_food,
-                "fruit_num": len(env.snake)
+                "fruit_num": len(env.snake) - 1
             },
-            "score": len(env.snake),
+            "score": len(env.snake) - 1,
             "num_inputs": env.inputs_since_food
         }
 
