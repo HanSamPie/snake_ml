@@ -96,7 +96,7 @@ def aggregate_checkpoints_data(checkpoints):
 
 
 def get_steps(data):
-    fname = Path(data["path"]).name
+    fname = Path(data["checkpoint_path"]).name
     if fname == "model.zip":
         return float("inf")  # put final model last
     if "steps" in fname:
@@ -106,10 +106,85 @@ def get_steps(data):
 
 
 def data_to_frame(version: dict) -> pd.DataFrame:
-    sorted_version = sorted(version, key=get_steps)
+    data = sorted(version, key=get_steps)
     
+    # 1. Load the initial data
+    df = pd.DataFrame(data)
 
-    pass 
+    # 2. Extract features from the checkpoint path using regex
+    # This creates new columns for model_name, version, and steps
+    path_details = df['checkpoint_path'].str.extract(
+        r'models/(?P<model_name>.*?)/(?P<version>.*?)/model_(?P<steps>\d+)_steps.zip'
+    )
+
+    # Convert steps to a numeric type for plotting and sorting
+    path_details['steps'] = pd.to_numeric(path_details['steps'])
+    # 3. Flatten the nested dictionary columns
+    # pd.json_normalize is perfect for turning a column of dicts into new columns
+    death_causes_df = pd.json_normalize(df['death_causes']).add_prefix('death_cause_')
+
+
+    # 4. Create the main DataFrame for agent-level analysis
+    # We combine the extracted and flattened data, and drop the original complex columns
+    df_checkpoints = pd.concat([
+        df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions'], axis=1),
+        path_details,
+        death_causes_df
+    ], axis=1)
+
+    print("--- Main Checkpoint DataFrame ---")
+    print(df_checkpoints)
+    
+    # 5. Create a separate, exploded DataFrame for death positions
+    # This is for analyzing data with a different granularity (one row per death event)
+    df_positions = df[['checkpoint_path', 'death_positions']].copy()
+    df_positions['steps'] = path_details['steps'] # Add steps for linking data
+
+    # .explode() creates a new row for each item in the list
+    df_positions_exploded = df_positions.explode('death_positions')
+
+    # Split the [x, y] coordinates into separate columns
+    df_positions_exploded[['death_x', 'death_y']] = pd.DataFrame(
+        df_positions_exploded['death_positions'].tolist(),
+        index=df_positions_exploded.index
+    )
+
+    # Clean up the final DataFrame
+    df_positions_exploded = df_positions_exploded.drop(['checkpoint_path', 'death_positions'], axis=1)
+
+
+    print("\n--- Exploded Death Positions DataFrame ---")
+    print(df_positions_exploded.head()) # Print first 5 rows
+
+    # 6. Create a separate, tidy DataFrame for average path ratios
+    # This is better than the wide format as it handles variable dict lengths
+    df_ratios = df[['checkpoint_path', 'avg_path_ratios']].copy()
+    df_ratios['steps'] = path_details['steps']
+
+    # Convert the dictionary into a list of (key, value) tuples to prepare for exploding
+    df_ratios['path_ratio_items'] = df_ratios['avg_path_ratios'].apply(lambda d: list(d.items()))
+
+    # Explode the list, so each (key, value) tuple gets its own row
+    df_ratios_exploded = df_ratios.explode('path_ratio_items')
+
+    # Split the tuple into separate 'score' and 'avg_path_length' columns
+    df_ratios_exploded[['score', 'avg_path_length']] = pd.DataFrame(
+        df_ratios_exploded['path_ratio_items'].tolist(),
+        index=df_ratios_exploded.index
+    )
+
+    # Convert to numeric types for plotting
+    df_ratios_exploded['score'] = pd.to_numeric(df_ratios_exploded['score'])
+    df_ratios_exploded['avg_path_length'] = pd.to_numeric(df_ratios_exploded['avg_path_length'])
+
+    # Clean up the final DataFrame
+    df_path_ratios_tidy = df_ratios_exploded.drop(
+        ['checkpoint_path', 'avg_path_ratios', 'path_ratio_items'], axis=1
+    )
+
+    print("\n--- Tidy Path Ratios DataFrame ---")
+    print(df_path_ratios_tidy.head())
+    print("\nThis 'long' format DataFrame is ideal for plotting average path length vs. score.")
 
 
 def learning_graphs(data):
