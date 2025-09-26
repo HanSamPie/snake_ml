@@ -214,6 +214,33 @@ def learning_graphs(data):
 
         print(f"Graph saved to {output_filename}")
 
+    # --- Generate and Save Average Score Line Plot ---
+    print("\nGenerating average score plot...")
+    plt.figure(figsize=(12, 8))
+
+    # For a clearer legend, create a combined model_version column
+    all_checkpoints['model_version'] = all_checkpoints['model_name'] + ' ' + all_checkpoints['version']
+
+    sns.lineplot(
+        data=all_checkpoints,
+        x='steps',
+        y='mean_score',
+        hue='model_version',
+        marker='o' # Add markers to data points
+    )
+
+    plt.title('Average Score vs. Training Steps', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Mean Score')
+    plt.grid(True)
+    plt.legend(title='Model Version')
+
+    score_plot_filename = 'avg_score_over_time.png'
+    plt.savefig(score_plot_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"Average score graph saved to {score_plot_filename}")
+
     with open('aggregated-data.json', 'w') as file:
         json.dump(aggregated_data, file, indent=2)
 
