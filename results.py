@@ -121,7 +121,7 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     # --- Create Checkpoints DataFrame ---
     death_causes_df = pd.json_normalize(df['death_causes']).add_prefix('death_cause_')
     df_checkpoints = pd.concat([
-        df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions'], axis=1),
+        df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions', 'score_distribution'], axis=1),
         path_details,
         death_causes_df
     ], axis=1)
@@ -147,7 +147,16 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     df_ratios_exploded['avg_path_length'] = pd.to_numeric(df_ratios_exploded['avg_path_length'])
     df_path_ratios_tidy = df_ratios_exploded.drop(['checkpoint_path', 'avg_path_ratios', 'path_ratio_items'], axis=1)
 
-    return df_checkpoints, df_positions_tidy, df_path_ratios_tidy
+    # --- Create Score Distribution DataFrame ---
+    df_scores = df[['checkpoint_path', 'score_distribution']].copy()
+    df_scores = pd.concat([df_scores, path_details], axis=1)
+    df_scores_exploded = df_scores.explode('score_distribution')
+    df_scores_exploded.rename(columns={'score_distribution': 'score'}, inplace=True)
+    df_scores_exploded['score'] = pd.to_numeric(df_scores_exploded['score'])
+    df_scores_tidy = df_scores_exploded.drop(['checkpoint_path'], axis=1)
+
+
+    return df_checkpoints, df_positions_tidy, df_path_ratios_tidy, df_scores_tidy
 
 
 def learning_graphs(data):
@@ -155,91 +164,104 @@ def learning_graphs(data):
     for model in data:
         aggregated_data.append(list(aggregate_checkpoints_data(model)))
 
-    checkpoints_list, positions_list, ratios_list = [], [], []
+    # Lists to hold the dataframes from each checkpoint
+    checkpoints_list, positions_list, ratios_list, scores_list = [], [], [], []
 
     # Process each checkpoint dictionary
     for checkpoint_data in aggregated_data:
-        df_c, df_p, df_r = data_to_frames(checkpoint_data)
+        df_c, df_p, df_r, df_s = data_to_frames(checkpoint_data)
         checkpoints_list.append(df_c)
         positions_list.append(df_p)
         ratios_list.append(df_r)
+        scores_list.append(df_s)
 
     # Concatenate all dataframes into final, aggregated ones
     all_checkpoints = pd.concat(checkpoints_list, ignore_index=True)
     all_positions = pd.concat(positions_list, ignore_index=True)
     all_path_ratios = pd.concat(ratios_list, ignore_index=True)
+    all_scores = pd.concat(scores_list, ignore_index=True)
 
     print("--- Aggregated Checkpoint DataFrame ---")
     print(all_checkpoints)
 
-    print("\n--- Aggregated Path Ratios DataFrame ---")
-    print(all_path_ratios.head())
+    print("\n--- Aggregated Score Distribution DataFrame ---")
+    print(all_scores.head())
 
     # --- Generate and Save Heatmaps ---
-    # Group by model and version to create a plot for each unique model
     for (model_name, version), group_df in all_path_ratios.groupby(['model_name', 'version']):
         print(f"\nGenerating heatmap for model: {model_name} (v{version})...")
 
-        # Create a copy to safely add a new column
         group_df_copy = group_df.copy()
-
-        # Map the unique sorted 'steps' to a simple 1-based index
         unique_steps = sorted(group_df_copy['steps'].unique())
         step_to_index_map = {step: i + 1 for i, step in enumerate(unique_steps)}
         group_df_copy['checkpoint_index'] = group_df_copy['steps'].map(step_to_index_map)
         
-        # Pivot using the new 'checkpoint_index' for the x-axis
         pivot_df = group_df_copy.pivot(index='score', columns='checkpoint_index', values='avg_path_length')
 
         plt.figure(figsize=(12, 8))
-        # Use PowerNorm to emphasize differences in lower values without unreadable log labels
         sns.heatmap(
             pivot_df,
             cmap='viridis',
             annot=False,
             fmt=".2f",
-            norm=mcolors.PowerNorm(gamma=0.5) # Apply power-law normalization
+            norm=mcolors.PowerNorm(gamma=0.5)
         )
-        
-        # Invert the Y-axis to have higher scores at the top
         plt.gca().invert_yaxis()
-
         plt.title(f'Avg Path Length | Model: {model_name} {version}', fontsize=16)
-        plt.xlabel('Checkpoint Number') # Use the new, cleaner axis label
+        plt.xlabel('Checkpoint Number')
         plt.ylabel('Score')
-
         output_filename = f'heatmap_{model_name}_{version}.png'
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-        plt.close() # Close the figure to avoid displaying it in a loop
-
+        plt.close()
         print(f"Graph saved to {output_filename}")
 
     # --- Generate and Save Average Score Line Plot ---
     print("\nGenerating average score plot...")
     plt.figure(figsize=(12, 8))
-
-    # For a clearer legend, create a combined model_version column
     all_checkpoints['model_version'] = all_checkpoints['model_name'] + ' ' + all_checkpoints['version']
-
     sns.lineplot(
         data=all_checkpoints,
         x='steps',
         y='mean_score',
         hue='model_version',
-        marker='o' # Add markers to data points
+        marker='o'
     )
-
     plt.title('Average Score vs. Training Steps', fontsize=16)
     plt.xlabel('Training Steps')
     plt.ylabel('Mean Score')
     plt.grid(True)
     plt.legend(title='Model Version')
-
     score_plot_filename = 'avg_score_over_time.png'
     plt.savefig(score_plot_filename, dpi=300, bbox_inches='tight')
     plt.close()
-
     print(f"Average score graph saved to {score_plot_filename}")
+    
+    # --- Generate and Save Score Stability Violin Plot ---
+    print("\nGenerating score stability plot...")
+    plt.figure(figsize=(12, 8))
+
+    all_scores['model_version'] = all_scores['model_name'] + ' ' + all_scores['version']
+
+    sns.violinplot(
+        data=all_scores,
+        x='steps',
+        y='score',
+        hue='model_version',
+        inner='quartile', # Shows the quartiles inside the violin
+        split=True # Splits violins for comparison when you have 2 models
+    )
+
+    plt.title('Score Distribution Stability vs. Training Steps', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Score')
+    plt.grid(True, axis='y')
+    plt.legend(title='Model Version')
+
+    stability_plot_filename = 'score_stability_over_time.png'
+    plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"Stability graph saved to {stability_plot_filename}")
 
     with open('aggregated-data.json', 'w') as file:
         json.dump(aggregated_data, file, indent=2)
