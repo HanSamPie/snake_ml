@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json
 from pathlib import Path
+from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
 
@@ -105,96 +106,93 @@ def get_steps(data):
     return -1  # fallback if format unexpected
 
 
-def data_to_frame(version: dict) -> pd.DataFrame:
+def data_to_frames(version: dict) -> pd.DataFrame:
     data = sorted(version, key=get_steps)
     
-    # 1. Load the initial data
     df = pd.DataFrame(data)
 
-    # 2. Extract features from the checkpoint path using regex
-    # This creates new columns for model_name, version, and steps
+    # Extract features from path
     path_details = df['checkpoint_path'].str.extract(
         r'models/(?P<model_name>.*?)/(?P<version>.*?)/model_(?P<steps>\d+)_steps.zip'
     )
-
-    # Convert steps to a numeric type for plotting and sorting
     path_details['steps'] = pd.to_numeric(path_details['steps'])
-    # 3. Flatten the nested dictionary columns
-    # pd.json_normalize is perfect for turning a column of dicts into new columns
+
+    # --- Create Checkpoints DataFrame ---
     death_causes_df = pd.json_normalize(df['death_causes']).add_prefix('death_cause_')
-
-
-    # 4. Create the main DataFrame for agent-level analysis
-    # We combine the extracted and flattened data, and drop the original complex columns
     df_checkpoints = pd.concat([
         df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions'], axis=1),
         path_details,
         death_causes_df
     ], axis=1)
 
-    print("--- Main Checkpoint DataFrame ---")
-    print(df_checkpoints)
-    
-    # 5. Create a separate, exploded DataFrame for death positions
-    # This is for analyzing data with a different granularity (one row per death event)
+    # --- Create Death Positions DataFrame ---
     df_positions = df[['checkpoint_path', 'death_positions']].copy()
-    df_positions['steps'] = path_details['steps'] # Add steps for linking data
-
-    # .explode() creates a new row for each item in the list
+    df_positions = pd.concat([df_positions, path_details], axis=1)
     df_positions_exploded = df_positions.explode('death_positions')
-
-    # Split the [x, y] coordinates into separate columns
     df_positions_exploded[['death_x', 'death_y']] = pd.DataFrame(
-        df_positions_exploded['death_positions'].tolist(),
-        index=df_positions_exploded.index
+        df_positions_exploded['death_positions'].tolist(), index=df_positions_exploded.index
     )
+    df_positions_tidy = df_positions_exploded.drop(['checkpoint_path', 'death_positions'], axis=1)
 
-    # Clean up the final DataFrame
-    df_positions_exploded = df_positions_exploded.drop(['checkpoint_path', 'death_positions'], axis=1)
-
-
-    print("\n--- Exploded Death Positions DataFrame ---")
-    print(df_positions_exploded.head()) # Print first 5 rows
-
-    # 6. Create a separate, tidy DataFrame for average path ratios
-    # This is better than the wide format as it handles variable dict lengths
+    # --- Create Path Ratios DataFrame ---
     df_ratios = df[['checkpoint_path', 'avg_path_ratios']].copy()
-    df_ratios['steps'] = path_details['steps']
-
-    # Convert the dictionary into a list of (key, value) tuples to prepare for exploding
+    df_ratios = pd.concat([df_ratios, path_details], axis=1)
     df_ratios['path_ratio_items'] = df_ratios['avg_path_ratios'].apply(lambda d: list(d.items()))
-
-    # Explode the list, so each (key, value) tuple gets its own row
     df_ratios_exploded = df_ratios.explode('path_ratio_items')
-
-    # Split the tuple into separate 'score' and 'avg_path_length' columns
     df_ratios_exploded[['score', 'avg_path_length']] = pd.DataFrame(
-        df_ratios_exploded['path_ratio_items'].tolist(),
-        index=df_ratios_exploded.index
+        df_ratios_exploded['path_ratio_items'].tolist(), index=df_ratios_exploded.index
     )
-
-    # Convert to numeric types for plotting
     df_ratios_exploded['score'] = pd.to_numeric(df_ratios_exploded['score'])
     df_ratios_exploded['avg_path_length'] = pd.to_numeric(df_ratios_exploded['avg_path_length'])
+    df_path_ratios_tidy = df_ratios_exploded.drop(['checkpoint_path', 'avg_path_ratios', 'path_ratio_items'], axis=1)
 
-    # Clean up the final DataFrame
-    df_path_ratios_tidy = df_ratios_exploded.drop(
-        ['checkpoint_path', 'avg_path_ratios', 'path_ratio_items'], axis=1
-    )
-
-    print("\n--- Tidy Path Ratios DataFrame ---")
-    print(df_path_ratios_tidy.head())
-    print("\nThis 'long' format DataFrame is ideal for plotting average path length vs. score.")
+    return df_checkpoints, df_positions_tidy, df_path_ratios_tidy
 
 
 def learning_graphs(data):
     aggregated_data = []
-    for version in data:
-        aggregated_data.append(list(aggregate_checkpoints_data(version)))
+    for model in data:
+        aggregated_data.append(list(aggregate_checkpoints_data(model)))
 
-    data_frames = []
-    for version in aggregated_data:
-        data_to_frame(version)
+    checkpoints_list, positions_list, ratios_list = [], [], []
+
+    # Process each checkpoint dictionary
+    for checkpoint_data in aggregated_data:
+        df_c, df_p, df_r = data_to_frames(checkpoint_data)
+        checkpoints_list.append(df_c)
+        positions_list.append(df_p)
+        ratios_list.append(df_r)
+
+    # Concatenate all dataframes into final, aggregated ones
+    all_checkpoints = pd.concat(checkpoints_list, ignore_index=True)
+    all_positions = pd.concat(positions_list, ignore_index=True)
+    all_path_ratios = pd.concat(ratios_list, ignore_index=True)
+
+    print("--- Aggregated Checkpoint DataFrame ---")
+    print(all_checkpoints)
+
+    print("\n--- Aggregated Path Ratios DataFrame ---")
+    print(all_path_ratios.head())
+
+    # --- Generate and Save Heatmaps ---
+    # Group by model and version to create a plot for each unique model
+    for (model_name, version), group_df in all_path_ratios.groupby(['model_name', 'version']):
+        print(f"\nGenerating heatmap for model: {model_name} ({version})...")
+
+        pivot_df = group_df.pivot(index='score', columns='steps', values='avg_path_length')
+
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(pivot_df, cmap='viridis', annot=False, fmt=".2f")
+
+        plt.title(f'Avg Path Length | Model: {model_name} v{version}', fontsize=16)
+        plt.xlabel('Training Steps')
+        plt.ylabel('Score')
+
+        output_filename = f'heatmap_{model_name}_{version}.png'
+        plt.savefig(output_filename, dpi=600, bbox_inches='tight')
+        plt.close() # Close the figure to avoid displaying it in a loop
+
+        print(f"Graph saved to {output_filename}")
 
     with open('aggregated-data.json', 'w') as file:
         json.dump(aggregated_data, file, indent=2)
