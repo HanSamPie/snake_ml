@@ -4,6 +4,7 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
+import matplotlib.colors as mcolors
 
 
 def data_per_episode(episode):
@@ -177,19 +178,38 @@ def learning_graphs(data):
     # --- Generate and Save Heatmaps ---
     # Group by model and version to create a plot for each unique model
     for (model_name, version), group_df in all_path_ratios.groupby(['model_name', 'version']):
-        print(f"\nGenerating heatmap for model: {model_name} ({version})...")
+        print(f"\nGenerating heatmap for model: {model_name} (v{version})...")
 
-        pivot_df = group_df.pivot(index='score', columns='steps', values='avg_path_length')
+        # Create a copy to safely add a new column
+        group_df_copy = group_df.copy()
+
+        # Map the unique sorted 'steps' to a simple 1-based index
+        unique_steps = sorted(group_df_copy['steps'].unique())
+        step_to_index_map = {step: i + 1 for i, step in enumerate(unique_steps)}
+        group_df_copy['checkpoint_index'] = group_df_copy['steps'].map(step_to_index_map)
+        
+        # Pivot using the new 'checkpoint_index' for the x-axis
+        pivot_df = group_df_copy.pivot(index='score', columns='checkpoint_index', values='avg_path_length')
 
         plt.figure(figsize=(12, 8))
-        sns.heatmap(pivot_df, cmap='viridis', annot=False, fmt=".2f")
+        # Use PowerNorm to emphasize differences in lower values without unreadable log labels
+        sns.heatmap(
+            pivot_df,
+            cmap='viridis',
+            annot=False,
+            fmt=".2f",
+            norm=mcolors.PowerNorm(gamma=0.5) # Apply power-law normalization
+        )
+        
+        # Invert the Y-axis to have higher scores at the top
+        plt.gca().invert_yaxis()
 
-        plt.title(f'Avg Path Length | Model: {model_name} v{version}', fontsize=16)
-        plt.xlabel('Training Steps')
+        plt.title(f'Avg Path Length | Model: {model_name} {version}', fontsize=16)
+        plt.xlabel('Checkpoint Number') # Use the new, cleaner axis label
         plt.ylabel('Score')
 
         output_filename = f'heatmap_{model_name}_{version}.png'
-        plt.savefig(output_filename, dpi=600, bbox_inches='tight')
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close() # Close the figure to avoid displaying it in a loop
 
         print(f"Graph saved to {output_filename}")
