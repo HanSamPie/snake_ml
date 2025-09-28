@@ -236,22 +236,22 @@ def learning_graphs(data):
     plt.close()
     print(f"Average score graph saved to {score_plot_filename}")
     
-    # --- Generate and Save Score Stability Violin Plot ---
+    # --- Generate and Save Score Stability Line Plot with Confidence Interval ---
     print("\nGenerating score stability plot...")
     plt.figure(figsize=(12, 8))
 
     all_scores['model_version'] = all_scores['model_name'] + ' ' + all_scores['version']
 
-    sns.violinplot(
+    # Use lineplot on the raw scores. Seaborn automatically calculates the mean and 95% confidence interval.
+    sns.lineplot(
         data=all_scores,
         x='steps',
-        y='score',
+        y='score', # Plotting individual scores
         hue='model_version',
-        inner='quartile', # Shows the quartiles inside the violin
-        split=True # Splits violins for comparison when you have 2 models
+        errorbar=('ci', 95) # 'ci' for confidence interval, 'sd' for standard deviation
     )
 
-    plt.title('Score Distribution Stability vs. Training Steps', fontsize=16)
+    plt.title('Score Trend with 95% Confidence Interval', fontsize=16)
     plt.xlabel('Training Steps')
     plt.ylabel('Score')
     plt.grid(True, axis='y')
@@ -262,6 +262,53 @@ def learning_graphs(data):
     plt.close()
 
     print(f"Stability graph saved to {stability_plot_filename}")
+
+    # --- Generate and Save Smoothed Score Stability Line Plot ---
+    print("\nGenerating smoothed score stability plot...")
+    plt.figure(figsize=(12, 8))
+    
+    # Define a window for the rolling average. Adjust as needed.
+    smoothing_window = 5 
+    
+    all_scores['model_version'] = all_scores['model_name'] + ' ' + all_scores['version']
+
+    # Get a list of unique model versions to loop through for plotting
+    model_versions = all_scores['model_version'].unique()
+    
+    for model_version in model_versions:
+        # Filter data for the current model version
+        model_df = all_scores[all_scores['model_version'] == model_version]
+        
+        # Calculate the mean and std dev of scores for each step
+        step_stats = model_df.groupby('steps')['score'].agg(['mean', 'std']).reset_index()
+        step_stats = step_stats.sort_values('steps') # Ensure data is sorted by steps
+        
+        # Apply rolling average to smooth the mean and std dev
+        step_stats['smoothed_mean'] = step_stats['mean'].rolling(window=smoothing_window, min_periods=1).mean()
+        step_stats['smoothed_std'] = step_stats['std'].rolling(window=smoothing_window, min_periods=1).mean()
+        
+        # Plot the smoothed mean line
+        plt.plot(step_stats['steps'], step_stats['smoothed_mean'], label=model_version)
+        
+        # Add the shaded confidence interval (mean +/- std dev)
+        plt.fill_between(
+            step_stats['steps'],
+            step_stats['smoothed_mean'] - step_stats['smoothed_std'],
+            step_stats['smoothed_mean'] + step_stats['smoothed_std'],
+            alpha=0.2
+        )
+
+    plt.title(f'Smoothed Score Trend with Standard Deviation (Window={smoothing_window})', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Score')
+    plt.grid(True, axis='y')
+    plt.legend(title='Model Version')
+
+    stability_plot_filename = 'score_stability_smoothed.png'
+    plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"Smoothed stability graph saved to {stability_plot_filename}")
 
     with open('aggregated-data.json', 'w') as file:
         json.dump(aggregated_data, file, indent=2)
