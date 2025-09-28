@@ -6,6 +6,7 @@ from stable_baselines3 import PPO
 import gymnasium as gym
 import torch
 from multiprocessing import Pool
+from stable_baselines3.common.utils import obs_as_tensor
 import snake_ml
 
 # Avoid oversubscription
@@ -50,36 +51,50 @@ def test_model(model_path, max_steps, num_episodes):
     model = PPO.load(model_path, device="cpu")
     env = gym.make(env_id, render_mode=None)
 
-    episodes = {}
-    episodes['path'] = model_path
-    episodes['results'] = []
+    episodes = {"path": model_path, "results": []}
 
     for i in range(num_episodes):
         obs, info = env.reset()
-
         total_reward = 0.0
-        food_info = []
-        death_info = {}
-        while(True):
-            # Model predicts an action
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            
+        food_info, death_info = [], {}
+
+        step_records = []  # collect per-step info
+
+        while True:
+            # wrap obs in torch for policy call
+            obs_tensor = obs_as_tensor(obs, model.device)
+            with torch.no_grad():
+                dist = model.policy.get_distribution(obs_tensor)
+                action = dist.get_actions(deterministic=True)
+                log_prob = dist.log_prob(action)
+                value = model.policy.predict_values(obs_tensor)
+
+            # step env
+            obs, reward, terminated, truncated, info = env.step(action.cpu().numpy())
+
+            # record
+            step_records.append({
+                "t": len(step_records),
+                "reward": float(reward),
+                "value": float(value.cpu().numpy()),
+                "log_prob": float(log_prob.cpu().numpy()),
+                "action": action.cpu().numpy().tolist(),
+            })
+
             total_reward += reward
             if "path" in info:
                 food_info.append(info)
             elif "death" in info:
                 death_info = info
 
-            if terminated or truncated or info['steps_since_food'] >= max_steps:
-                episode_data = {
+            if terminated or truncated or info.get("steps_since_food", 0) >= max_steps:
+                episodes['results'].append({
                     "episode_id": i,
-                    "food_info": food_info, 
-                    "death_info": death_info, 
-                    "total_reward": total_reward 
-                }
-                # Append the dictionary to the results list
-                episodes['results'].append(episode_data)
+                    "total_reward": total_reward,
+                    "food_info": food_info,
+                    "death_info": death_info,
+                    "steps": step_records,
+                })
                 break
 
     env.close()
