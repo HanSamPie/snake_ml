@@ -159,7 +159,119 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     return df_checkpoints, df_positions_tidy, df_path_ratios_tidy, df_scores_tidy
 
 
+def _plot_heatmaps(path_ratios_df: pd.DataFrame):
+    """Generates and saves heatmaps for average path length per score."""
+    print("\n--- Generating Heatmaps ---")
+    for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
+        print(f"Processing heatmap for model: {model_name} (v{version})...")
+
+        group_df_copy = group_df.copy()
+        unique_steps = sorted(group_df_copy['steps'].unique())
+        step_to_index_map = {step: i + 1 for i, step in enumerate(unique_steps)}
+        group_df_copy['checkpoint_index'] = group_df_copy['steps'].map(step_to_index_map)
+        
+        pivot_df = group_df_copy.pivot(index='score', columns='checkpoint_index', values='avg_path_length')
+
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(
+            pivot_df,
+            cmap='viridis',
+            annot=False,
+            norm=mcolors.PowerNorm(gamma=0.5)
+        )
+        plt.gca().invert_yaxis()
+        plt.title(f'Avg Path Length | Model: {model_name} {version}', fontsize=16)
+        plt.xlabel('Checkpoint Number')
+        plt.ylabel('Score')
+        
+        output_filename = f'graphs/heatmap_{model_name}_{version}.png'
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Graph saved to {output_filename}")
+
+
+def _plot_avg_score(checkpoints_df: pd.DataFrame):
+    """Generates and saves a line plot for the average score over training steps."""
+    print("\n--- Generating Average Score Plot ---")
+    checkpoints_df['model_version'] = checkpoints_df['model_name'] + ' ' + checkpoints_df['version']
+    
+    plt.figure(figsize=(12, 8))
+    sns.lineplot(data=checkpoints_df, x='steps', y='mean_score', hue='model_version', marker='o')
+    
+    plt.title('Average Score vs. Training Steps', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Mean Score')
+    plt.grid(True)
+    plt.legend(title='Model Version')
+    
+    output_filename = 'graphs/avg_score_over_time.png'
+    plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Graph saved to {output_filename}")
+
+
+def _plot_score_stability(scores_df: pd.DataFrame):
+    """Generates and saves a line plot showing score trend with a confidence interval."""
+    print("\n--- Generating Score Stability Plot ---")
+    scores_df['model_version'] = scores_df['model_name'] + ' ' + scores_df['version']
+
+    plt.figure(figsize=(12, 8))
+    sns.lineplot(data=scores_df, x='steps', y='score', hue='model_version', errorbar=('ci', 95))
+    
+    plt.title('Score Trend with 95% Confidence Interval', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Score')
+    plt.grid(True, axis='y')
+    plt.legend(title='Model Version')
+    
+    output_filename = 'graphs/score_stability_over_time.png'
+    plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Graph saved to {output_filename}")
+
+
+def _plot_death_causes(checkpoints_df: pd.DataFrame):
+    """Generates and saves stacked area plots for death causes over time."""
+    print("\n--- Generating Death Cause Analysis Plots ---")
+    death_cause_cols = [col for col in checkpoints_df.columns if col.startswith('death_cause_')]
+    
+    for (model_name, version), group_df in checkpoints_df.groupby(['model_name', 'version']):
+        print(f"Processing death cause plot for model: {model_name} (v{version})...")
+        
+        plot_df = group_df.set_index('steps')[death_cause_cols].sort_index()
+        plot_df.columns = [c.replace('death_cause_', '') for c in plot_df.columns]
+
+        plt.figure(figsize=(12, 8))
+        plot_df.plot(kind='area', stacked=True, figsize=(12, 8), ax=plt.gca())
+
+        plt.title(f'Death Causes Over Time | Model: {model_name} {version}', fontsize=16)
+        plt.xlabel('Training Steps')
+        plt.ylabel('Number of Occurrences')
+        plt.legend(title='Death Cause')
+        plt.grid(True, axis='y')
+        
+        output_filename = f'graphs/death_causes_{model_name}_{version}.png'
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Graph saved to {output_filename}")
+
+
 def learning_graphs(data):
+    """
+    Processes model training data to generate and save a series of analytical graphs.
+
+    This function aggregates data from multiple model checkpoints, transforms it into
+    pandas DataFrames, and then generates several visualizations including:
+    - Heatmaps of path length vs. score.
+    - Line plots of average score over time.
+    - Line plots of score stability with confidence intervals.
+    - Stacked area plots of death causes.
+
+    Args:
+        data: A list of dictionaries, where each dictionary represents a model's
+              raw data to be processed.
+    """
+    # --- Step 1: Data Aggregation and Processing ---
     aggregated_data = []
     for model in data:
         aggregated_data.append(list(aggregate_checkpoints_data(model)))
@@ -187,157 +299,17 @@ def learning_graphs(data):
     print("\n--- Aggregated Score Distribution DataFrame ---")
     print(all_scores.head())
 
-    # --- Generate and Save Heatmaps ---
-    for (model_name, version), group_df in all_path_ratios.groupby(['model_name', 'version']):
-        print(f"\nGenerating heatmap for model: {model_name} (v{version})...")
-
-        group_df_copy = group_df.copy()
-        unique_steps = sorted(group_df_copy['steps'].unique())
-        step_to_index_map = {step: i + 1 for i, step in enumerate(unique_steps)}
-        group_df_copy['checkpoint_index'] = group_df_copy['steps'].map(step_to_index_map)
-        
-        pivot_df = group_df_copy.pivot(index='score', columns='checkpoint_index', values='avg_path_length')
-
-        plt.figure(figsize=(12, 8))
-        sns.heatmap(
-            pivot_df,
-            cmap='viridis',
-            annot=False,
-            fmt=".2f",
-            norm=mcolors.PowerNorm(gamma=0.5)
-        )
-        plt.gca().invert_yaxis()
-        plt.title(f'Avg Path Length | Model: {model_name} {version}', fontsize=16)
-        plt.xlabel('Checkpoint Number')
-        plt.ylabel('Score')
-        output_filename = f'graphs/heatmap_{model_name}_{version}.png'
-        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
-        plt.close()
-        print(f"Graph saved to {output_filename}")
-
-    # --- Generate and Save Average Score Line Plot ---
-    print("\nGenerating average score plot...")
-    plt.figure(figsize=(12, 8))
-    all_checkpoints['model_version'] = all_checkpoints['model_name'] + ' ' + all_checkpoints['version']
-    sns.lineplot(
-        data=all_checkpoints,
-        x='steps',
-        y='mean_score',
-        hue='model_version',
-        marker='o'
-    )
-    plt.title('Average Score vs. Training Steps', fontsize=16)
-    plt.xlabel('Training Steps')
-    plt.ylabel('Mean Score')
-    plt.grid(True)
-    plt.legend(title='Model Version')
-    score_plot_filename = 'graphs/avg_score_over_time.png'
-    plt.savefig(score_plot_filename, dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"Average score graph saved to {score_plot_filename}")
+    # --- Step 2: Generate and Save Graphs ---
+    # Create the output directory if it doesn't exist to prevent errors
+    import os
+    os.makedirs('graphs', exist_ok=True)
     
-    # --- Generate and Save Score Stability Line Plot with Confidence Interval ---
-    print("\nGenerating score stability plot...")
-    plt.figure(figsize=(12, 8))
-
-    all_scores['model_version'] = all_scores['model_name'] + ' ' + all_scores['version']
-
-    # Use lineplot on the raw scores. Seaborn automatically calculates the mean and 95% confidence interval.
-    sns.lineplot(
-        data=all_scores,
-        x='steps',
-        y='score', # Plotting individual scores
-        hue='model_version',
-        errorbar=('ci', 95) # 'ci' for confidence interval, 'sd' for standard deviation
-    )
-
-    plt.title('Score Trend with 95% Confidence Interval', fontsize=16)
-    plt.xlabel('Training Steps')
-    plt.ylabel('Score')
-    plt.grid(True, axis='y')
-    plt.legend(title='Model Version')
-
-    stability_plot_filename = 'graphs/score_stability_over_time.png'
-    plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Stability graph saved to {stability_plot_filename}")
-
-    # --- Generate and Save Smoothed Score Stability Line Plot ---
-    print("\nGenerating smoothed score stability plot...")
-    plt.figure(figsize=(12, 8))
+    _plot_heatmaps(all_path_ratios)
+    _plot_avg_score(all_checkpoints)
+    _plot_score_stability(all_scores)
+    _plot_death_causes(all_checkpoints)
     
-    # Define a window for the rolling average. Adjust as needed.
-    smoothing_window = 5 
-    
-    all_scores['model_version'] = all_scores['model_name'] + ' ' + all_scores['version']
-
-    # Get a list of unique model versions to loop through for plotting
-    model_versions = all_scores['model_version'].unique()
-    
-    for model_version in model_versions:
-        # Filter data for the current model version
-        model_df = all_scores[all_scores['model_version'] == model_version]
-        
-        # Calculate the mean and std dev of scores for each step
-        step_stats = model_df.groupby('steps')['score'].agg(['mean', 'std']).reset_index()
-        step_stats = step_stats.sort_values('steps') # Ensure data is sorted by steps
-        
-        # Apply rolling average to smooth the mean and std dev
-        step_stats['smoothed_mean'] = step_stats['mean'].rolling(window=smoothing_window, min_periods=1).mean()
-        step_stats['smoothed_std'] = step_stats['std'].rolling(window=smoothing_window, min_periods=1).mean()
-        
-        # Plot the smoothed mean line
-        plt.plot(step_stats['steps'], step_stats['smoothed_mean'], label=model_version)
-        
-        # Add the shaded confidence interval (mean +/- std dev)
-        plt.fill_between(
-            step_stats['steps'],
-            step_stats['smoothed_mean'] - step_stats['smoothed_std'],
-            step_stats['smoothed_mean'] + step_stats['smoothed_std'],
-            alpha=0.2
-        )
-
-    plt.title(f'Smoothed Score Trend with Standard Deviation (Window={smoothing_window})', fontsize=16)
-    plt.xlabel('Training Steps')
-    plt.ylabel('Score')
-    plt.grid(True, axis='y')
-    plt.legend(title='Model Version')
-
-    stability_plot_filename = 'graphs/score_stability_smoothed.png'
-    plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Smoothed stability graph saved to {stability_plot_filename}")
-
-    # --- Generate and Save Death Cause Stacked Area Plot ---
-    print("\nGenerating death cause analysis plot...")
-    
-    # Dynamically find all death cause columns
-    death_cause_cols = [col for col in all_checkpoints.columns if col.startswith('death_cause_')]
-    
-    for (model_name, version), group_df in all_checkpoints.groupby(['model_name', 'version']):
-        print(f"Generating death cause plot for model: {model_name} (v{version})...")
-        
-        # Prepare data for plotting
-        plot_df = group_df.set_index('steps')[death_cause_cols].sort_index()
-        # Clean up column names for the legend
-        plot_df.columns = [c.replace('death_cause_', '') for c in plot_df.columns]
-
-        # Create the stacked area plot
-        plt.figure(figsize=(12, 8))
-        plot_df.plot(kind='area', stacked=True, figsize=(12, 8))
-
-        plt.title(f'Death Causes Over Time | Model: {model_name} {version}', fontsize=16)
-        plt.xlabel('Training Steps')
-        plt.ylabel('Number of Occurrences')
-        plt.legend(title='Death Cause')
-        plt.grid(True, axis='y')
-        
-        death_cause_filename = f'graphs/death_causes_{model_name}_{version}.png'
-        plt.savefig(death_cause_filename, dpi=300, bbox_inches='tight')
-        plt.close()
-        print(f"Death cause graph saved to {death_cause_filename}")
+    print("\nAll graphs have been generated successfully.")
 
 
 def result_graphs(data):
