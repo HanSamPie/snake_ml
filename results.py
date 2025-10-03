@@ -210,13 +210,13 @@ def _plot_avg_score(checkpoints_df: pd.DataFrame):
     print(f"Graph saved to {output_filename}")
 
 
-def _plot_score_stability(scores_df: pd.DataFrame):
+def _plot_score_stability(df: pd.DataFrame):
     """Generates and saves a line plot showing score trend with a confidence interval."""
     print("\n--- Generating Score Stability Plot ---")
-    scores_df['model_version'] = scores_df['model_name'] + ' ' + scores_df['version']
+    df['model_version'] = df['model_name'] + ' ' + df['version']
 
     plt.figure(figsize=(12, 8))
-    sns.lineplot(data=scores_df, x='steps', y='score', hue='model_version', errorbar=('ci', 95))
+    sns.lineplot(data=df, x='steps', y='score', hue='model_version', errorbar=('ci', 95))
     
     plt.title('Score Trend with 95% Confidence Interval', fontsize=16)
     plt.xlabel('Training Steps')
@@ -251,6 +251,57 @@ def _plot_death_causes(checkpoints_df: pd.DataFrame):
         plt.grid(True, axis='y')
         
         output_filename = f'graphs/death_causes_{model_name}_{version}.png'
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Graph saved to {output_filename}")
+
+
+def _plot_avg_reward(checkpoints_df: pd.DataFrame):
+    """Generates and saves a line plot for the average reward over training steps."""
+    print("\n--- Generating Average Reward Plot ---")
+    checkpoints_df['model_version'] = checkpoints_df['model_name'] + ' ' + checkpoints_df['version']
+    
+    plt.figure(figsize=(12, 8))
+    sns.lineplot(data=checkpoints_df, x='steps', y='mean_reward', hue='model_version', marker='o')
+    
+    plt.title('Average Reward vs. Training Steps', fontsize=16)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Mean Reward')
+    plt.grid(True)
+    plt.legend(title='Model Version')
+    
+    output_filename = 'graphs/avg_reward_over_time.png'
+    plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Graph saved to {output_filename}")
+
+
+def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
+    """Generates scatter plots of average path length vs. score."""
+    print("\n--- Generating Path Ratio vs. Score Plots ---")
+    for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
+        print(f"Processing path ratio vs. score plot for model: {model_name} (v{version})...")
+        
+        plt.figure(figsize=(12, 8))
+        
+        # Create a scatter plot, coloring points by the number of training steps
+        sns.scatterplot(
+            data=group_df,
+            x='score',
+            y='avg_path_length',
+            hue='steps',
+            palette='viridis', # Use a sequential colormap
+            s=50, # size of points
+            alpha=0.7
+        )
+        
+        plt.title(f'Avg Path Length vs. Score | Model: {model_name} {version}', fontsize=16)
+        plt.xlabel('Score')
+        plt.ylabel('Average Path Length')
+        plt.grid(True)
+        plt.legend(title='Training Steps')
+        
+        output_filename = f'graphs/path_ratio_vs_score_{model_name}_{version}.png'
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
@@ -308,6 +359,8 @@ def learning_graphs(data):
     _plot_avg_score(all_checkpoints)
     _plot_score_stability(all_scores)
     _plot_death_causes(all_checkpoints)
+    _plot_avg_reward(all_checkpoints)
+    _plot_path_ratio_vs_score(all_path_ratios)
     
     print("\nAll graphs have been generated successfully.")
 
@@ -317,7 +370,7 @@ def result_graphs(data):
 
 
 if __name__ == '__main__':
-    with open('results.json', 'r') as file:
+    with open('new-results.json', 'r') as file:
         data = json.load(file)
 
     #sorted_data = sort_by_steps(data)
