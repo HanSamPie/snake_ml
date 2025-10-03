@@ -34,7 +34,7 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs, checkpoint_steps):
         env = make_vec_env(env_name, n_envs=n_envs)
 
         # init PPO
-        model = PPO("MlpPolicy", env, verbose=0, **ppo_kwargs)
+        model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
 
         checkpoint_callback = CheckpointCallback(save_freq = max(checkpoint_steps // n_envs, 1), save_path=f'{save_path}/', name_prefix='model')
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 1.0
+    version = 1.1
     save_path1 = f"models/snake_one-hot/v{version}"
     save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
