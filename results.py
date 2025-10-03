@@ -2,6 +2,7 @@ from collections import defaultdict
 import json
 from pathlib import Path
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.colors as mcolors
@@ -282,11 +283,26 @@ def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
     for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
         print(f"Processing path ratio vs. score plot for model: {model_name} (v{version})...")
         
+        # Get unique sorted steps and select every 5th one to reduce clutter
+        unique_steps = sorted(group_df['steps'].unique())
+        # Sample every 5th step
+        sampled_steps = unique_steps[::5]
+        
+        # Always include the last step to see the final performance
+        if unique_steps and unique_steps[-1] not in sampled_steps:
+            sampled_steps.append(unique_steps[-1])
+        
+        # Filter the DataFrame to only include the sampled steps
+        plot_df = group_df[group_df['steps'].isin(sampled_steps)]
+
+        # Remove outliers with a path length greater than 25
+        plot_df = plot_df[plot_df['avg_path_length'] <= 25]
+
         plt.figure(figsize=(12, 8))
         
-        # Create a scatter plot, coloring points by the number of training steps
+        # Create a scatter plot using the downsampled and filtered data
         sns.scatterplot(
-            data=group_df,
+            data=plot_df,
             x='score',
             y='avg_path_length',
             hue='steps',
@@ -295,7 +311,7 @@ def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
             alpha=0.7
         )
         
-        plt.title(f'Avg Path Length vs. Score | Model: {model_name} {version}', fontsize=16)
+        plt.title(f'Avg Path Length vs. Score (Sampled, Outliers Removed) | Model: {model_name} {version}', fontsize=16)
         plt.xlabel('Score')
         plt.ylabel('Average Path Length')
         plt.grid(True)
@@ -305,6 +321,58 @@ def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
+
+
+def _plot_path_ratio_vs_score_lineplot(path_ratios_df: pd.DataFrame, max_plots_per_model=5):
+    """
+    Generates a single line plot per model version, with lines for each checkpoint,
+    showing avg path length vs. score.
+    """
+    print("\n--- Generating Combined Path Ratio vs. Score Line Plots ---")
+    for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
+        print(f"Processing combined plot for model: {model_name} (v{version})...")
+
+        unique_steps = sorted(group_df['steps'].unique())
+
+        # Select a limited number of checkpoints to plot to avoid clutter
+        if len(unique_steps) > max_plots_per_model:
+            indices = np.linspace(0, len(unique_steps) - 1, max_plots_per_model, dtype=int)
+            selected_steps = [unique_steps[i] for i in indices]
+        else:
+            selected_steps = unique_steps
+        
+        # Filter the DataFrame to only include data from the selected checkpoints
+        plot_df = group_df[group_df['steps'].isin(selected_steps)]
+        plot_df = plot_df[plot_df['avg_path_length'] <= 25] # Filter outliers
+        
+        if plot_df.empty:
+            print(f"  - Skipping {model_name} {version} due to no data after filtering.")
+            continue
+
+        plt.figure(figsize=(12, 8))
+        
+        # Use 'hue' to create a separate line for each checkpoint step
+        sns.lineplot(
+            data=plot_df,
+            x='score',
+            y='avg_path_length',
+            hue='steps',
+            palette='viridis', # A sequential colormap is good for time-based data
+            marker='o'
+        )
+        
+        plt.title(f'Avg Path Length vs. Score at Different Checkpoints\nModel: {model_name} {version}', fontsize=16)
+        plt.xlabel('Score')
+        plt.ylabel('Average Path Length')
+        plt.grid(True)
+        plt.legend(title='Checkpoint Steps')
+        
+        output_filename = f'graphs/plot_{model_name}_{version}.png'
+        
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"  - Saved combined plot to '{output_filename}'")
 
 
 def learning_graphs(data):
@@ -361,6 +429,7 @@ def learning_graphs(data):
     _plot_death_causes(all_checkpoints)
     _plot_avg_reward(all_checkpoints)
     _plot_path_ratio_vs_score(all_path_ratios)
+    _plot_path_ratio_vs_score_lineplot(all_path_ratios)
     
     print("\nAll graphs have been generated successfully.")
 
