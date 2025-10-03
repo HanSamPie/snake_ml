@@ -83,7 +83,7 @@ if __name__ == "__main__":
         batch_size=2048,
         n_epochs=10,
         learning_rate=0.0003,
-        gamma=0.99,
+        gamma=0.999,
         gae_lambda=0.95,
         clip_range=0.2,
         vf_coef=0.5,
