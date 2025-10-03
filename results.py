@@ -210,7 +210,7 @@ def learning_graphs(data):
         plt.title(f'Avg Path Length | Model: {model_name} {version}', fontsize=16)
         plt.xlabel('Checkpoint Number')
         plt.ylabel('Score')
-        output_filename = f'heatmap_{model_name}_{version}.png'
+        output_filename = f'graphs/heatmap_{model_name}_{version}.png'
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
@@ -231,7 +231,7 @@ def learning_graphs(data):
     plt.ylabel('Mean Score')
     plt.grid(True)
     plt.legend(title='Model Version')
-    score_plot_filename = 'avg_score_over_time.png'
+    score_plot_filename = 'graphs/avg_score_over_time.png'
     plt.savefig(score_plot_filename, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Average score graph saved to {score_plot_filename}")
@@ -257,7 +257,7 @@ def learning_graphs(data):
     plt.grid(True, axis='y')
     plt.legend(title='Model Version')
 
-    stability_plot_filename = 'score_stability_over_time.png'
+    stability_plot_filename = 'graphs/score_stability_over_time.png'
     plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -304,14 +304,40 @@ def learning_graphs(data):
     plt.grid(True, axis='y')
     plt.legend(title='Model Version')
 
-    stability_plot_filename = 'score_stability_smoothed.png'
+    stability_plot_filename = 'graphs/score_stability_smoothed.png'
     plt.savefig(stability_plot_filename, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"Smoothed stability graph saved to {stability_plot_filename}")
 
-    with open('aggregated-data.json', 'w') as file:
-        json.dump(aggregated_data, file, indent=2)
+    # --- Generate and Save Death Cause Stacked Area Plot ---
+    print("\nGenerating death cause analysis plot...")
+    
+    # Dynamically find all death cause columns
+    death_cause_cols = [col for col in all_checkpoints.columns if col.startswith('death_cause_')]
+    
+    for (model_name, version), group_df in all_checkpoints.groupby(['model_name', 'version']):
+        print(f"Generating death cause plot for model: {model_name} (v{version})...")
+        
+        # Prepare data for plotting
+        plot_df = group_df.set_index('steps')[death_cause_cols].sort_index()
+        # Clean up column names for the legend
+        plot_df.columns = [c.replace('death_cause_', '') for c in plot_df.columns]
+
+        # Create the stacked area plot
+        plt.figure(figsize=(12, 8))
+        plot_df.plot(kind='area', stacked=True, figsize=(12, 8))
+
+        plt.title(f'Death Causes Over Time | Model: {model_name} {version}', fontsize=16)
+        plt.xlabel('Training Steps')
+        plt.ylabel('Number of Occurrences')
+        plt.legend(title='Death Cause')
+        plt.grid(True, axis='y')
+        
+        death_cause_filename = f'graphs/death_causes_{model_name}_{version}.png'
+        plt.savefig(death_cause_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Death cause graph saved to {death_cause_filename}")
 
 
 def result_graphs(data):
