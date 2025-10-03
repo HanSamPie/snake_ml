@@ -11,7 +11,7 @@ from test import test_all
 # ----------------
 # Training wrapper
 # ----------------
-def train_model(env_name, save_path, timesteps, ppo_kwargs, checkpoint_steps):
+def train_model(env_name, save_path, timesteps, checkpoint_steps, ppo_kwargs):
     # Set our tracking server uri for logging
     mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")
 
@@ -34,7 +34,7 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs, checkpoint_steps):
         env = make_vec_env(env_name, n_envs=n_envs)
 
         # init PPO
-        model = PPO("MlpPolicy", env, verbose=1, **ppo_kwargs)
+        model = PPO("MlpPolicy", env, verbose=0, **ppo_kwargs)
 
         checkpoint_callback = CheckpointCallback(save_freq = max(checkpoint_steps // n_envs, 1), save_path=f'{save_path}/', name_prefix='model')
 
