@@ -11,7 +11,7 @@ from test import test_all
 # ----------------
 # Training wrapper
 # ----------------
-def train_model(env_name, save_path, timesteps, ppo_kwargs):
+def train_model(env_name, save_path, timesteps, ppo_kwargs, checkpoint_steps):
     # Set our tracking server uri for logging
     mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")
 
@@ -36,13 +36,14 @@ def train_model(env_name, save_path, timesteps, ppo_kwargs):
         # init PPO
         model = PPO("MlpPolicy", env, verbose=0, **ppo_kwargs)
 
-        checkpoint_callback = CheckpointCallback(save_freq = max(1_000_000 // n_envs, 1), save_path=f'{save_path}/', name_prefix='model')
+        checkpoint_callback = CheckpointCallback(save_freq = max(checkpoint_steps // n_envs, 1), save_path=f'{save_path}/', name_prefix='model')
 
         # train
         model.learn(total_timesteps=timesteps, callback=checkpoint_callback)
 
         # save model + log
-        model.save(f'{save_path}/model.zip')
+        #last version already saved by timestep
+        #model.save(f'{save_path}/model.zip')
         mlflow.log_artifact(f'{save_path}/model.zip')
 
         env.close()
@@ -89,15 +90,16 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 300_000_000
+    timesteps = 150_000_000
+    checkpoint_steps = 5_000_000
 
     # different kwargs for each policy
     onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
     int_kwargs = dict(base_kwargs, policy_kwargs=int_policy)
 
     jobs = []
-    jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps), kwargs={'ppo_kwargs': onehot_kwargs}))
-    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps), kwargs={'ppo_kwargs': int_kwargs}))
+    jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps, checkpoint_steps), kwargs={'ppo_kwargs': onehot_kwargs}))
+    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps, checkpoint_steps), kwargs={'ppo_kwargs': int_kwargs}))
 
     for j in jobs: j.start()
     for j in jobs: j.join()
