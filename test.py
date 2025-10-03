@@ -62,22 +62,27 @@ def test_model(model_path, max_steps, num_episodes):
 
         while True:
             # wrap obs in torch for policy call
-            obs_tensor = obs_as_tensor(obs, model.device)
+            obs_tensor = obs_as_tensor(obs, model.device).unsqueeze(0)  # add batch dimension
             with torch.no_grad():
                 dist = model.policy.get_distribution(obs_tensor)
                 action = dist.get_actions(deterministic=True)
                 log_prob = dist.log_prob(action)
                 value = model.policy.predict_values(obs_tensor)
 
+            # remove batch dimension for storage/env step
+            action = action.squeeze(0)
+            log_prob = log_prob.squeeze(0)
+            value = value.squeeze(0)
+
             # step env
-            obs, reward, terminated, truncated, info = env.step(action.cpu().numpy())
+            obs, reward, terminated, truncated, info = env.step(action.cpu().item())
 
             # record
             step_records.append({
                 "t": len(step_records),
                 "reward": float(reward),
-                "value": float(value.cpu().numpy()),
-                "log_prob": float(log_prob.cpu().numpy()),
+                "value": value.cpu().item(),
+                "log_prob": log_prob.cpu().item(),
                 "action": action.cpu().numpy().tolist(),
             })
 
@@ -123,7 +128,7 @@ def test_all(max_steps, num_episodes, model_dir):
         with Pool(processes=int(os.cpu_count())) as pool:
             results.append(list(pool.imap_unordered(partial_test_model, version_list)))
     
-    with open('results.json', 'w') as file:
+    with open('new-results.json', 'w') as file:
         json.dump(results, file)
 
 if __name__ == "__main__":
