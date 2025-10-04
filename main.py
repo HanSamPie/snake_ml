@@ -1,3 +1,4 @@
+import os
 import mlflow
 import torch
 from stable_baselines3 import PPO
@@ -42,11 +43,11 @@ def train_model(env_name, save_path, timesteps, checkpoint_steps, ppo_kwargs):
         model.learn(total_timesteps=timesteps, callback=checkpoint_callback)
 
         # save model + log
-        #last version already saved by timestep
-        #model.save(f'{save_path}/model.zip')
+        model.save(f'{save_path}/model.zip')
         mlflow.log_artifact(f'{save_path}/model.zip')
 
         env.close()
+        os.remove(f'{save_path}/model.zip')
 
 
 # ----------------
@@ -82,7 +83,7 @@ if __name__ == "__main__":
         n_steps=1024,
         batch_size=2048,
         n_epochs=10,
-        learning_rate=0.0003,
+        learning_rate=0.0001,
         gamma=0.999,
         gae_lambda=0.95,
         clip_range=0.2,
@@ -90,7 +91,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 150_000_000
+    timesteps = 200_000_000
     checkpoint_steps = 5_000_000
 
     # different kwargs for each policy
