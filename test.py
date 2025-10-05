@@ -6,7 +6,6 @@ from stable_baselines3 import PPO
 import gymnasium as gym
 import torch
 from multiprocessing import Pool
-from stable_baselines3.common.utils import obs_as_tensor
 import snake_ml
 
 # Avoid oversubscription
@@ -57,48 +56,22 @@ def test_model(model_path, max_steps, num_episodes):
         obs, info = env.reset()
         total_reward = 0.0
         food_info, death_info = [], {}
-
-        step_records = []  # collect per-step info
-
         while True:
-            # wrap obs in torch for policy call
-            obs_tensor = obs_as_tensor(obs, model.device).unsqueeze(0)  # add batch dimension
-            with torch.no_grad():
-                dist = model.policy.get_distribution(obs_tensor)
-                action = dist.get_actions(deterministic=True)
-                log_prob = dist.log_prob(action)
-                value = model.policy.predict_values(obs_tensor)
-
-            # remove batch dimension for storage/env step
-            action = action.squeeze(0)
-            log_prob = log_prob.squeeze(0)
-            value = value.squeeze(0)
-
-            # step env
-            obs, reward, terminated, truncated, info = env.step(action.cpu().item())
-
-            # record
-            step_records.append({
-                "t": len(step_records),
-                "reward": float(reward),
-                "value": value.cpu().item(),
-                "log_prob": log_prob.cpu().item(),
-                "action": action.cpu().numpy().tolist(),
-            })
-
+            # Model predicts an action
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             if "path" in info:
                 food_info.append(info)
             elif "death" in info:
                 death_info = info
 
-            if terminated or truncated or info.get("steps_since_food", 0) >= max_steps:
+            if terminated or truncated or info['steps_since_food'] >= max_steps:
                 episodes['results'].append({
                     "episode_id": i,
                     "total_reward": total_reward,
                     "food_info": food_info,
                     "death_info": death_info,
-                    "steps": step_records,
                 })
                 break
 
@@ -108,13 +81,13 @@ def test_model(model_path, max_steps, num_episodes):
 
 def test_all(max_steps, num_episodes, model_dir):
     models_types = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
-    
+
     versions = [
         os.path.join(model_type, f)
         for model_type in models_types
         for f in os.listdir(model_type)
     ]
-    
+
     version_collection, result_files = data_exist(versions)
     results = []
     for version_list in version_collection:
@@ -128,7 +101,7 @@ def test_all(max_steps, num_episodes, model_dir):
         with Pool(processes=int(os.cpu_count())) as pool:
             results.append(list(pool.imap_unordered(partial_test_model, version_list)))
     
-    with open('new-results.json', 'w') as file:
+    with open('results.json', 'w') as file:
         json.dump(results, file)
 
 if __name__ == "__main__":
@@ -139,4 +112,3 @@ if __name__ == "__main__":
     model_dir = './models'
 
     test_all(max_steps, num_episodes, model_dir)
-    
