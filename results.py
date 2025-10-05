@@ -56,17 +56,22 @@ def aggregate_checkpoints_data(checkpoints):
         death_causes = defaultdict(int)
         death_positions = []
         death_details = []
-        for data in valid_episodes:
-            cause = data['death_info']['death']['cause']
-            death_causes[cause] += 1
-            death_details.append({
-                'score': data['death_info']['score'],
-                'cause': cause
-            })
-
-            position = data['death_info']['death']['position']
-            if position is not None:
-                death_positions.append(position)
+        for data in all_episode_data:
+            if data['deprecated']:
+                # For deprecated runs, add their details with a score of 0
+                death_details.append({'score': 0, 'cause': 'deprecated'})
+            else:
+                # For valid runs, process as before
+                cause = data['death_info']['death']['cause']
+                death_causes[cause] += 1 # Tally actual causes here
+                death_details.append({
+                    'score': data['death_info']['score'],
+                    'cause': cause
+                })
+                position = data['death_info']['death']['position']
+                if position is not None:
+                    death_positions.append(position)
+        
         death_causes['deprecated'] = num_deprecated
 
         NUM_EPISODES = 100
