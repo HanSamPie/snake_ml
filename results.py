@@ -52,12 +52,17 @@ def aggregate_checkpoints_data(checkpoints):
         rewards = [data['total_reward'] for data in valid_episodes]
         mean_reward = sum(rewards) / len(rewards) if rewards else 0.0
 
-        # Tally death causes and collect death positions
+        # Tally death causes and collect death positions and details
         death_causes = defaultdict(int)
         death_positions = []
+        death_details = []
         for data in valid_episodes:
             cause = data['death_info']['death']['cause']
             death_causes[cause] += 1
+            death_details.append({
+                'score': data['death_info']['score'],
+                'cause': cause
+            })
 
             position = data['death_info']['death']['position']
             if position is not None:
@@ -94,7 +99,8 @@ def aggregate_checkpoints_data(checkpoints):
             "mean_reward": mean_reward,
             "death_causes": dict(death_causes),
             "death_positions": death_positions,
-            "avg_path_ratios": avg_path_ratios
+            "avg_path_ratios": avg_path_ratios,
+            "death_details": death_details
         }
 
 
@@ -122,7 +128,7 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     # --- Create Checkpoints DataFrame ---
     death_causes_df = pd.json_normalize(df['death_causes']).add_prefix('death_cause_')
     df_checkpoints = pd.concat([
-        df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions', 'score_distribution'], axis=1),
+        df.drop(['checkpoint_path', 'death_causes', 'avg_path_ratios', 'death_positions', 'score_distribution', 'death_details'], axis=1),
         path_details,
         death_causes_df
     ], axis=1)
@@ -131,9 +137,12 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     df_positions = df[['checkpoint_path', 'death_positions']].copy()
     df_positions = pd.concat([df_positions, path_details], axis=1)
     df_positions_exploded = df_positions.explode('death_positions')
-    df_positions_exploded[['death_x', 'death_y']] = pd.DataFrame(
-        df_positions_exploded['death_positions'].tolist(), index=df_positions_exploded.index
-    )
+    try:
+        df_positions_exploded[['death_x', 'death_y']] = pd.DataFrame(
+            df_positions_exploded['death_positions'].tolist(), index=df_positions_exploded.index
+        )
+    except:
+        pass
     df_positions_tidy = df_positions_exploded.drop(['checkpoint_path', 'death_positions'], axis=1)
 
     # --- Create Path Ratios DataFrame ---
@@ -156,15 +165,25 @@ def data_to_frames(version: dict) -> pd.DataFrame:
     df_scores_exploded['score'] = pd.to_numeric(df_scores_exploded['score'])
     df_scores_tidy = df_scores_exploded.drop(['checkpoint_path'], axis=1)
 
+    # --- Create Death Details DataFrame ---
+    df_deaths = df[['checkpoint_path', 'death_details']].copy()
+    df_deaths = pd.concat([df_deaths, path_details], axis=1)
+    df_deaths_exploded = df_deaths.explode('death_details')
+    death_details_normalized = pd.json_normalize(df_deaths_exploded['death_details'])
+    df_deaths_tidy = pd.concat([
+        df_deaths_exploded.drop(columns=['checkpoint_path', 'death_details']).reset_index(drop=True),
+        death_details_normalized
+    ], axis=1)
 
-    return df_checkpoints, df_positions_tidy, df_path_ratios_tidy, df_scores_tidy
+
+    return df_checkpoints, df_positions_tidy, df_path_ratios_tidy, df_scores_tidy, df_deaths_tidy
 
 
 def _plot_heatmaps(path_ratios_df: pd.DataFrame):
     """Generates and saves heatmaps for average path length per score."""
     print("\n--- Generating Heatmaps ---")
     for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
-        print(f"Processing heatmap for model: {model_name} (v{version})...")
+        print(f"Processing heatmap for model: {model_name} ({version})...")
 
         group_df_copy = group_df.copy()
         unique_steps = sorted(group_df_copy['steps'].unique())
@@ -237,7 +256,7 @@ def _plot_death_causes(checkpoints_df: pd.DataFrame):
     death_cause_cols = [col for col in checkpoints_df.columns if col.startswith('death_cause_')]
     
     for (model_name, version), group_df in checkpoints_df.groupby(['model_name', 'version']):
-        print(f"Processing death cause plot for model: {model_name} (v{version})...")
+        print(f"Processing death cause plot for model: {model_name} ({version})...")
         
         plot_df = group_df.set_index('steps')[death_cause_cols].sort_index()
         plot_df.columns = [c.replace('death_cause_', '') for c in plot_df.columns]
@@ -281,7 +300,7 @@ def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
     """Generates scatter plots of average path length vs. score."""
     print("\n--- Generating Path Ratio vs. Score Plots ---")
     for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
-        print(f"Processing path ratio vs. score plot for model: {model_name} (v{version})...")
+        print(f"Processing path ratio vs. score plot for model: {model_name} ({version})...")
         
         # Get unique sorted steps and select every 5th one to reduce clutter
         unique_steps = sorted(group_df['steps'].unique())
@@ -330,7 +349,7 @@ def _plot_path_ratio_vs_score_lineplot(path_ratios_df: pd.DataFrame, max_plots_p
     """
     print("\n--- Generating Combined Path Ratio vs. Score Line Plots ---")
     for (model_name, version), group_df in path_ratios_df.groupby(['model_name', 'version']):
-        print(f"Processing combined plot for model: {model_name} (v{version})...")
+        print(f"Processing combined plot for model: {model_name} {version})...")
 
         unique_steps = sorted(group_df['steps'].unique())
 
@@ -373,6 +392,50 @@ def _plot_path_ratio_vs_score_lineplot(path_ratios_df: pd.DataFrame, max_plots_p
         plt.close()
 
         print(f"  - Saved combined plot to '{output_filename}'")
+    
+
+def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
+    """
+    Generates KDE plots showing the distribution of scores for each death cause.
+    This helps visualize if certain death causes are more common at low vs. high scores.
+    """
+    print("\n--- Generating Death Cause Distribution by Score Plots ---")
+
+    for (model_name, version), group_df in df.groupby(['model_name', 'version']):
+        print(f"Processing plot for model: {model_name} (v{version})...")
+
+        if group_df.empty:
+            print("  - No data to plot. Skipping.")
+            continue
+
+        plt.figure(figsize=(12, 8))
+        
+        # Use KDE plot to show the density of scores for each death cause
+        ax = sns.kdeplot(
+            data=group_df,
+            x='score',
+            hue='cause',
+            fill=True,
+            common_norm=False, # Normalize each curve independently
+            alpha=0.3
+        )
+        
+        plt.title(f'Distribution of Scores by Death Cause\nModel: {model_name} {version}', fontsize=16)
+        plt.xlabel('Score at Death')
+        plt.ylabel('Density')
+        plt.grid(True, axis='x', linestyle='--', alpha=0.6)
+        
+        # Get the legend object created by seaborn and set its title.
+        # This is a more reliable way to ensure the legend is titled correctly.
+        legend = ax.get_legend()
+        if legend:
+            legend.set_title('Death Cause')
+
+        output_filename = f'graphs/death_cause_dist_by_score_{model_name}_{version}.png'
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"  - Saved plot to '{output_filename}'")
 
 
 def learning_graphs(data):
@@ -396,21 +459,24 @@ def learning_graphs(data):
         aggregated_data.append(list(aggregate_checkpoints_data(model)))
 
     # Lists to hold the dataframes from each checkpoint
-    checkpoints_list, positions_list, ratios_list, scores_list = [], [], [], []
+    checkpoints_list, positions_list, ratios_list, scores_list, deaths_list = [], [], [], [], []
 
     # Process each checkpoint dictionary
     for checkpoint_data in aggregated_data:
-        df_c, df_p, df_r, df_s = data_to_frames(checkpoint_data)
+        df_c, df_p, df_r, df_s, df_d = data_to_frames(checkpoint_data)
         checkpoints_list.append(df_c)
         positions_list.append(df_p)
         ratios_list.append(df_r)
         scores_list.append(df_s)
+        deaths_list.append(df_d)
 
     # Concatenate all dataframes into final, aggregated ones
     all_checkpoints = pd.concat(checkpoints_list, ignore_index=True)
     all_positions = pd.concat(positions_list, ignore_index=True)
     all_path_ratios = pd.concat(ratios_list, ignore_index=True)
     all_scores = pd.concat(scores_list, ignore_index=True)
+    all_death_details = pd.concat(deaths_list, ignore_index=True)
+
 
     print("--- Aggregated Checkpoint DataFrame ---")
     print(all_checkpoints)
@@ -430,6 +496,7 @@ def learning_graphs(data):
     _plot_avg_reward(all_checkpoints)
     _plot_path_ratio_vs_score(all_path_ratios)
     _plot_path_ratio_vs_score_lineplot(all_path_ratios)
+    _plot_death_cause_distribution_by_score(all_death_details)
     
     print("\nAll graphs have been generated successfully.")
 
@@ -445,3 +512,4 @@ if __name__ == '__main__':
     #sorted_data = sort_by_steps(data)
     learning_graphs(data)
     result_graphs(data)
+
