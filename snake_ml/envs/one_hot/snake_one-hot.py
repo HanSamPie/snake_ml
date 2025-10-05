@@ -96,7 +96,7 @@ class SnakeEnv(gym.Env):
         #     else:
         #         reward -= max_steps_since_food/(max_steps_since_food - self.steps_since_food + 1) - 1 # small penalty otherwise  
 
-        return self._get_obs(), *self.rw.alive(self)
+        return self._get_obs(), *self.rw.alive(self, new_head)
     
 
     def _place_food(self):

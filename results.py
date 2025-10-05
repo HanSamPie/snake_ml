@@ -16,14 +16,13 @@ def data_per_episode(episode):
     paths = [info['path'] for info in food_info]
 
     death_info_raw = episode['death_info']
-    deprecated = not bool(death_info_raw)
+    deprecated = death_info_raw['death'] == 'deprecated'
 
-    death_info = {}
-    if not deprecated:
-        death_info = {
-            'score': death_info_raw['score'],
-            'death': death_info_raw['death']
-        }
+
+    death_info = {
+        'score': death_info_raw['score'],
+        'death': death_info_raw['death']
+    }
 
     return {
         "paths": paths,

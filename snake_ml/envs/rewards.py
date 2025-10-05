@@ -15,9 +15,14 @@
 # conclusive to performance and depend more on the reward function and training method)
 
 class Rewards():
-    def alive(self, env)->tuple[float, bool, dict]: 
+    def alive(self, env, new_head)->tuple[float, bool, dict]: 
         return 0.0, False, False, {
-            "steps_since_food": env.steps_since_food
+            "steps_since_food": env.steps_since_food,
+            "score": len(env.snake),
+            "death": {
+                "cause": "deprecated",
+                "position": new_head
+            }
         }
     
     def foodReward(self, env)->tuple[float, bool, dict]:

@@ -63,8 +63,8 @@ def test_model(model_path, max_steps, num_episodes):
             total_reward += reward
             if "path" in info:
                 food_info.append(info)
-            elif "death" in info:
-                death_info = info
+                
+            death_info = info
 
             if terminated or truncated or info['steps_since_food'] >= max_steps:
                 episodes['results'].append({
