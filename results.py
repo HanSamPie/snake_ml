@@ -16,9 +16,11 @@ def data_per_episode(episode):
     paths = [info['path'] for info in food_info]
 
     death_info_raw = episode['death_info']
-    deprecated = death_info_raw['death'] == 'deprecated'
 
+    # The 'deprecated' flag is now determined by the cause in the death info.
+    deprecated = death_info_raw['death']['cause'] == 'deprecated'
 
+    # The full death_info object is always present.
     death_info = {
         'score': death_info_raw['score'],
         'death': death_info_raw['death']
@@ -40,44 +42,45 @@ def aggregate_checkpoints_data(checkpoints):
         # Process each episode within the current checkpoint
         all_episode_data = [data_per_episode(episode) for episode in checkpoint['results']]
 
-        # Separate episodes into valid and deprecated runs
+        # Separate episodes into valid (non-deprecated) and deprecated runs
         valid_episodes = [data for data in all_episode_data if not data['deprecated']]
         num_deprecated = len(all_episode_data) - len(valid_episodes)
         
-        # Aggregate scores and rewards from valid episodes
+        # Aggregate scores and rewards from valid episodes only
         scores = [data['death_info']['score'] for data in valid_episodes]
         mean_score = sum(scores) / len(scores) if scores else 0.0
         
         rewards = [data['total_reward'] for data in valid_episodes]
         mean_reward = sum(rewards) / len(rewards) if rewards else 0.0
 
-        # Tally death causes and collect death positions and details
+        # Tally death causes and collect details from all episodes
         death_causes = defaultdict(int)
         death_positions = []
         death_details = []
         for data in all_episode_data:
-            if data['deprecated']:
-                # For deprecated runs, add their details with a score of 0
-                death_details.append({'score': 0, 'cause': 'deprecated'})
-            else:
-                # For valid runs, process as before
-                cause = data['death_info']['death']['cause']
-                death_causes[cause] += 1 # Tally actual causes here
-                death_details.append({
-                    'score': data['death_info']['score'],
-                    'cause': cause
-                })
+            cause = data['death_info']['death']['cause']
+            score = data['death_info']['score']
+            
+            # Increment the count for the specific cause (e.g., 'snake', 'border', 'deprecated')
+            death_causes[cause] += 1
+            
+            # Record the details for per-episode analysis
+            death_details.append({
+                'score': score,
+                'cause': cause
+            })
+
+            # Only collect positions for non-deprecated runs
+            if not data['deprecated']:
                 position = data['death_info']['death']['position']
                 if position is not None:
                     death_positions.append(position)
         
-        death_causes['deprecated'] = num_deprecated
-
         NUM_EPISODES = 100
         if not sum(death_causes.values()) == NUM_EPISODES:
             raise RuntimeError(f"More than or less then {NUM_EPISODES} death causes: {sum(death_causes.values())}")
 
-        # Calculate path efficiency ratios for each fruit
+        # Calculate path efficiency ratios for each fruit from valid episodes
         path_ratios_by_fruit = defaultdict(list)
         for episode in valid_episodes:
             for path in episode['paths']:
