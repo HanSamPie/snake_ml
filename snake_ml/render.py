@@ -2,7 +2,7 @@ import numpy as np
 from rich.console import Console
 import time
 
-def render(snake, food, board_size):
+def render(snake, food, board_size, steps):
     console = Console()
     
     grid = np.full((board_size, board_size), " ")
@@ -14,5 +14,5 @@ def render(snake, food, board_size):
     grid[fy, fx] = "*"
 
     console.clear()
-    console.print(grid)
-    time.sleep(0.125)
+    console.print(grid, f"\nsteps since food: {steps}")
+    time.sleep(0.05)

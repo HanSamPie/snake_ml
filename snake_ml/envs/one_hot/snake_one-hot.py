@@ -128,5 +128,5 @@ class SnakeEnv(gym.Env):
         return flat_board
 
     def render(self):
-        render(self.snake, self.food, self.board_size)
+        render(self.snake, self.food, self.board_size, self.steps_since_food)
         

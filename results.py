@@ -513,7 +513,7 @@ def result_graphs(data):
 
 
 if __name__ == '__main__':
-    with open('new-results.json', 'r') as file:
+    with open('results.json', 'r') as file:
         data = json.load(file)
 
     #sorted_data = sort_by_steps(data)
