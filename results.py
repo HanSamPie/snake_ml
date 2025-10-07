@@ -508,15 +508,11 @@ def learning_graphs(data):
     print("\nAll graphs have been generated successfully.")
 
 
-def result_graphs(data):
-    pass
+
 
 
 if __name__ == '__main__':
     with open('results.json', 'r') as file:
         data = json.load(file)
 
-    #sorted_data = sort_by_steps(data)
     learning_graphs(data)
-    result_graphs(data)
-

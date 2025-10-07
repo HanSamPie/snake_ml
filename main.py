@@ -57,7 +57,7 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 1.2
+    version = 2.0
     save_path1 = f"models/snake_one-hot/v{version}"
     save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
@@ -73,8 +73,8 @@ if __name__ == "__main__":
 
     int_policy = dict(
         net_arch=dict(
-            pi=[256, 256, 256, 128, 64],
-            vf=[256, 256, 256, 128, 64],
+            pi=[512, 512, 512, 256, 128],
+            vf=[512, 512, 512, 256, 128],
         ),
         activation_fn=torch.nn.ReLU
     )
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 200_000_000
+    timesteps = 250_000_000
     checkpoint_steps = 5_000_000
 
     # different kwargs for each policy
