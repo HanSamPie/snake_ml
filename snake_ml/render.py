@@ -14,5 +14,5 @@ def render(snake, food, board_size, steps):
     grid[fy, fx] = "*"
 
     console.clear()
-    console.print(grid, f"\nsteps since food: {steps}")
+    console.print(grid, f"\nsteps since food: {steps}", f"\nscore: {len(snake)-1}")
     time.sleep(0.05)

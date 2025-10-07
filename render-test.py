@@ -13,7 +13,7 @@ def test(max_steps=200, render=True):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
         
-        if render:
+        if info["score"] > 50:
             env.render()
         
         if terminated or truncated or step == max_steps - 1:
@@ -22,4 +22,4 @@ def test(max_steps=200, render=True):
 
     env.close()
 
-test(2000)
+test(10000)
