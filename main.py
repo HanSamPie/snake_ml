@@ -57,9 +57,9 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 2.0
+    version = 2.1
     save_path1 = f"models/snake_one-hot/v{version}"
-    save_path2 = f"models/snake_int/v{version}"
+    # save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
     n_envs = 48
 
@@ -71,13 +71,13 @@ if __name__ == "__main__":
         activation_fn=torch.nn.ReLU
     )
 
-    int_policy = dict(
-        net_arch=dict(
-            pi=[512, 512, 512, 256, 128],
-            vf=[512, 512, 512, 256, 128],
-        ),
-        activation_fn=torch.nn.ReLU
-    )
+    # int_policy = dict(
+    #     net_arch=dict(
+    #         pi=[512, 512, 512, 256, 128],
+    #         vf=[512, 512, 512, 256, 128],
+    #     ),
+    #     activation_fn=torch.nn.ReLU
+    # )
 
     base_kwargs = dict(
         n_steps=1024,
@@ -96,11 +96,11 @@ if __name__ == "__main__":
 
     # different kwargs for each policy
     onehot_kwargs = dict(base_kwargs, policy_kwargs=onehot_policy)
-    int_kwargs = dict(base_kwargs, policy_kwargs=int_policy)
+    # int_kwargs = dict(base_kwargs, policy_kwargs=int_policy)
 
     jobs = []
     jobs.append(Process(target=train_model, args=("snake_one-hot", save_path1, timesteps, checkpoint_steps), kwargs={'ppo_kwargs': onehot_kwargs}))
-    jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps, checkpoint_steps), kwargs={'ppo_kwargs': int_kwargs}))
+    # jobs.append(Process(target=train_model, args=("snake_int", save_path2, timesteps, checkpoint_steps), kwargs={'ppo_kwargs': int_kwargs}))
 
     for j in jobs: j.start()
     for j in jobs: j.join()
