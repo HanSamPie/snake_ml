@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+import os
 from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
@@ -211,7 +212,8 @@ def _plot_heatmaps(path_ratios_df: pd.DataFrame):
         plt.xlabel('Checkpoint Number')
         plt.ylabel('Score')
         
-        output_filename = f'graphs/heatmap_{model_name}_{version}.png'
+        output_filename = f'graphs/{version}/heatmap_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
@@ -277,7 +279,8 @@ def _plot_death_causes(checkpoints_df: pd.DataFrame):
         plt.legend(title='Death Cause')
         plt.grid(True, axis='y')
         
-        output_filename = f'graphs/death_causes_{model_name}_{version}.png'
+        output_filename = f'graphs/{version}/death_causes_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
@@ -343,7 +346,8 @@ def _plot_path_ratio_vs_score(path_ratios_df: pd.DataFrame):
         plt.grid(True)
         plt.legend(title='Training Steps')
         
-        output_filename = f'graphs/path_ratio_vs_score_{model_name}_{version}.png'
+        output_filename = f'graphs/{version}/path_ratio_vs_score_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"Graph saved to {output_filename}")
@@ -393,8 +397,8 @@ def _plot_path_ratio_vs_score_lineplot(path_ratios_df: pd.DataFrame, max_plots_p
         plt.grid(True)
         plt.legend(title='Checkpoint Steps')
         
-        output_filename = f'graphs/plot_{model_name}_{version}.png'
-        
+        output_filename = f'graphs/{version}/plot_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -438,7 +442,8 @@ def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
         if legend:
             legend.set_title('Death Cause')
 
-        output_filename = f'graphs/death_cause_dist_by_score_{model_name}_{version}.png'
+        output_filename = f'graphs/{version}/death_cause_dist_by_score_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
         plt.savefig(output_filename, dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -464,6 +469,9 @@ def learning_graphs(data):
     aggregated_data = []
     for model in data:
         aggregated_data.append(list(aggregate_checkpoints_data(model)))
+
+    with open('aggregated-data.json', 'w') as file:
+        json.dump(aggregated_data, file, indent=2)
 
     # Lists to hold the dataframes from each checkpoint
     checkpoints_list, positions_list, ratios_list, scores_list, deaths_list = [], [], [], [], []
@@ -496,7 +504,7 @@ def learning_graphs(data):
     import os
     os.makedirs('graphs', exist_ok=True)
     
-    _plot_heatmaps(all_path_ratios)
+    #_plot_heatmaps(all_path_ratios)
     _plot_avg_score(all_checkpoints)
     _plot_score_stability(all_scores)
     _plot_death_causes(all_checkpoints)
@@ -504,6 +512,7 @@ def learning_graphs(data):
     _plot_path_ratio_vs_score(all_path_ratios)
     _plot_path_ratio_vs_score_lineplot(all_path_ratios)
     _plot_death_cause_distribution_by_score(all_death_details)
+    #TODO death pos heatmaps for final model
     
     print("\nAll graphs have been generated successfully.")
 
