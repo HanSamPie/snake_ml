@@ -57,7 +57,7 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 2.1
+    version = 2.2
     save_path1 = f"models/snake_one-hot/v{version}"
     # save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         n_steps=1024,
         batch_size=2048,
         n_epochs=10,
-        learning_rate=0.0001,
+        learning_rate=0.0001, #TODO test lower training rate
         gamma=0.999,
         gae_lambda=0.95,
         clip_range=0.2,
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         device=device,
     )
 
-    timesteps = 250_000_000
+    timesteps = 200_000_000
     checkpoint_steps = 5_000_000
 
     # different kwargs for each policy

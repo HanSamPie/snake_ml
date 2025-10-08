@@ -71,7 +71,7 @@ class Rewards():
         elif new_head in env.snake:
             cause = "snake"
             
-        return -1.0, True, False, {
+        return -2.5, True, False, {
             "steps_since_food": env.steps_since_food,
             "score": len(env.snake),
             "death": {
