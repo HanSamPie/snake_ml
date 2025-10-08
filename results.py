@@ -526,7 +526,7 @@ def learning_graphs(data, exclude_versions):
 
 
 if __name__ == '__main__':
-    with open('./results copy.json', 'r') as file:
+    with open('./results.json', 'r') as file:
         data = json.load(file)
 
     exclude_versions = [ "v1.1", 'v1.2', 'int']
