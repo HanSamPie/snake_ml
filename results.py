@@ -452,7 +452,7 @@ def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
         print(f"  - Saved plot to '{output_filename}'")
 
 
-def learning_graphs(data):
+def learning_graphs(data, exclude_versions):
     """
     Processes model training data to generate and save a series of analytical graphs.
 
@@ -467,6 +467,9 @@ def learning_graphs(data):
         data: A list of dictionaries, where each dictionary represents a model's
               raw data to be processed.
     """
+    # --- Step 0: Filter Versions ---
+    data = [ version for version in data if not any(exclude in version[0]['path'] for exclude in exclude_versions) ]
+
     # --- Step 1: Data Aggregation and Processing ---
     aggregated_data = []
     for model in data:
@@ -523,7 +526,9 @@ def learning_graphs(data):
 
 
 if __name__ == '__main__':
-    with open('results.json', 'r') as file:
+    with open('./results copy.json', 'r') as file:
         data = json.load(file)
 
-    learning_graphs(data)
+    exclude_versions = [ "v1.1", 'v1.2', 'int']
+
+    learning_graphs(data, exclude_versions)
