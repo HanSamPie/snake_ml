@@ -175,6 +175,7 @@ def data_to_frames(version: dict) -> pd.DataFrame:
 
     # --- Create Death Details DataFrame ---
     df_deaths = df[['checkpoint_path', 'death_details']].copy()
+    df_deaths = df_deaths.iloc[-1:]
     df_deaths = pd.concat([df_deaths, path_details], axis=1)
     df_deaths_exploded = df_deaths.explode('death_details')
     death_details_normalized = pd.json_normalize(df_deaths_exploded['death_details'])
@@ -427,8 +428,9 @@ def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
             x='score',
             hue='cause',
             fill=True,
-            common_norm=False, # Normalize each curve independently
-            alpha=0.3
+            # common_norm=False, # Normalize each curve independently
+            alpha=0.3,
+            cut=0
         )
         
         plt.title(f'Distribution of Scores by Death Cause\nModel: {model_name} {version}', fontsize=16)
@@ -512,7 +514,7 @@ def learning_graphs(data):
     _plot_path_ratio_vs_score(all_path_ratios)
     _plot_path_ratio_vs_score_lineplot(all_path_ratios)
     _plot_death_cause_distribution_by_score(all_death_details)
-    #TODO death pos heatmaps for final model
+    #TODO death pos heatmaps for final model TODO only take last model see death cause KDE
     
     print("\nAll graphs have been generated successfully.")
 
