@@ -95,7 +95,7 @@ def test_all(max_steps, num_episodes, model_dir, full_run=False):
     results = []
 
     try:
-        with open('./aggregated-data.json', 'r') as file:
+        with open('./results.json', 'r') as file:
             results = json.load( file)
     except:
         pass
