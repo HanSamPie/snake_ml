@@ -57,7 +57,7 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 2.2
+    version = 2.3
     save_path1 = f"models/snake_one-hot/v{version}"
     # save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
@@ -110,4 +110,4 @@ if __name__ == "__main__":
 
     model_dir = './models'
 
-    test_all(max_steps, num_episodes, model_dir)
+    test_all(max_steps, num_episodes, model_dir, full_run=False)

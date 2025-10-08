@@ -31,7 +31,7 @@ class Rewards():
         
         opt_path = abs(x_old - x_food) + abs(y_old - y_food)
 
-        return 2.0, False, False, {
+        return 5.0, False, False, {
             "steps_since_food": env.steps_since_food,
             "path": {
                 "optimal_path": opt_path,
@@ -48,7 +48,7 @@ class Rewards():
         
         opt_path = abs(x_old - x_food) + abs(y_old - y_food)
         
-        return 5.0, True, False, {
+        return 10.0, True, False, {
             "steps_since_food": env.steps_since_food,
             "path": {
                 "optimal_path": opt_path,
@@ -71,7 +71,7 @@ class Rewards():
         elif new_head in env.snake:
             cause = "snake"
             
-        return -2.5, True, False, {
+        return -1.0, True, False, {
             "steps_since_food": env.steps_since_food,
             "score": len(env.snake),
             "death": {
