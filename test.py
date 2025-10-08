@@ -11,20 +11,24 @@ import snake_ml
 # Avoid oversubscription
 torch.set_num_threads(1)
 
-def data_exist(versions):
+def data_exist(versions, results, full_run):
     """
     returns list of lists, where one list contains all the models of one version
     """
     models = []
-    data = []
-    for version in versions:
-        files = os.listdir(version)
-        if 'data.json' in files:
-            data.append(os.path.join(version, 'data.json'))
-        else:
-            names = [os.path.join(version, f) for f in os.listdir(version)]
-            models.append(names)
-    return models, data
+
+    version_names = []
+    if not full_run:
+        paths = [os.path.dirname(result[0]['path']) for result in results]
+        version_names = [version for version in versions if version not in paths]
+    else:
+        version_names = versions
+    
+    for version in version_names:
+        names = [os.path.join(version, f) for f in os.listdir(version)]
+        models.append(names)
+
+    return models
 
 
 def env_from_path(model_path: Path):
@@ -79,7 +83,7 @@ def test_model(model_path, max_steps, num_episodes):
     return episodes
 
 
-def test_all(max_steps, num_episodes, model_dir):
+def test_all(max_steps, num_episodes, model_dir, full_run=False):
     models_types = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
 
     versions = [
@@ -88,8 +92,15 @@ def test_all(max_steps, num_episodes, model_dir):
         for f in os.listdir(model_type)
     ]
 
-    version_collection, result_files = data_exist(versions)
     results = []
+
+    try:
+        with open('./aggregated-data.json', 'r') as file:
+            results = json.load( file)
+    except:
+        pass
+
+    version_collection = data_exist(versions, results, full_run)
     for version_list in version_collection:
         print("Working on version List:")
         print(version_list)
@@ -111,4 +122,4 @@ if __name__ == "__main__":
 
     model_dir = './models'
 
-    test_all(max_steps, num_episodes, model_dir)
+    test_all(max_steps, num_episodes, model_dir, full_run=False)
