@@ -57,7 +57,7 @@ if __name__ == "__main__":
     import torch
     from multiprocessing import Process
 
-    version = 2.4
+    version = 2.5
     save_path1 = f"models/snake_one-hot/v{version}"
     # save_path2 = f"models/snake_int/v{version}"
     device = "cuda"
@@ -83,8 +83,8 @@ if __name__ == "__main__":
         n_steps=1024,
         batch_size=2048,
         n_epochs=10,
-        learning_rate=0.0005, #TODO test lower training rate
-        gamma=0.999,
+        learning_rate=0.001, #TODO test lower training rate
+        gamma=0.9995,
         gae_lambda=0.95,
         clip_range=0.2,
         vf_coef=0.5,

@@ -16,7 +16,7 @@
 
 class Rewards():
     def alive(self, env, new_head)->tuple[float, bool, dict]: 
-        return -0.005, False, False, {
+        return -0.008, False, False, {
             "steps_since_food": env.steps_since_food,
             "score": len(env.snake),
             "death": {
