@@ -143,14 +143,24 @@ def data_to_frames(version: dict) -> pd.DataFrame:
 
     # --- Create Death Positions DataFrame ---
     df_positions = df[['checkpoint_path', 'death_positions']].copy()
+    # df_positions = df_positions.iloc[-1:]
     df_positions = pd.concat([df_positions, path_details], axis=1)
     df_positions_exploded = df_positions.explode('death_positions')
-    try:
+    
+    # Drop rows where 'death_positions' is NaN (from empty lists in the source data)
+    df_positions_exploded.dropna(subset=['death_positions'], inplace=True)
+
+    # Check if there's any data left to process to avoid errors on empty dataframes
+    if not df_positions_exploded.empty:
+        # Now it's safe to convert the list of coordinates into separate columns
         df_positions_exploded[['death_x', 'death_y']] = pd.DataFrame(
             df_positions_exploded['death_positions'].tolist(), index=df_positions_exploded.index
         )
-    except:
-        pass
+    else:
+        # If the dataframe is empty after dropping NaNs, create empty columns to maintain schema
+        df_positions_exploded['death_x'] = pd.Series(dtype='float64')
+        df_positions_exploded['death_y'] = pd.Series(dtype='float64')
+    
     df_positions_tidy = df_positions_exploded.drop(['checkpoint_path', 'death_positions'], axis=1)
 
     # --- Create Path Ratios DataFrame ---
@@ -392,7 +402,7 @@ def _plot_path_ratio_vs_score_lineplot(path_ratios_df: pd.DataFrame, max_plots_p
             marker='o'
         )
         
-        plt.title(f'Avg Path Length vs. Score at Different Checkpoints\nModel: {model_name} {version}', fontsize=16)
+        plt.title(f'Avg Path Length vs. Score Over Time (Sampled)\nModel: {model_name} {version}', fontsize=16)
         plt.xlabel('Score')
         plt.ylabel('Average Path Length')
         plt.grid(True)
@@ -433,7 +443,7 @@ def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
             cut=0
         )
         
-        plt.title(f'Distribution of Scores by Death Cause\nModel: {model_name} {version}', fontsize=16)
+        plt.title(f'Distribution of Scores by Death Cause\nLast Model of {model_name} {version}', fontsize=16)
         plt.xlabel('Score at Death')
         plt.ylabel('Density')
         plt.grid(True, axis='x', linestyle='--', alpha=0.6)
@@ -450,6 +460,45 @@ def _plot_death_cause_distribution_by_score(df: pd.DataFrame):
         plt.close()
 
         print(f"  - Saved plot to '{output_filename}'")
+
+
+def _plot_death_position_heatmap(positions_df: pd.DataFrame):
+    """Generates a 2D density heatmap of death positions for the final model of each version."""
+    print("\n--- Generating Death Position Heatmaps ---")
+
+    # Find the data for the final checkpoint (max steps) for each model version
+    final_checkpoints_df = positions_df.loc[positions_df.groupby(['model_name', 'version'])['steps'].idxmax()]
+
+    for (model_name, version), group_df in final_checkpoints_df.groupby(['model_name', 'version']):
+        print(f"Processing death position heatmap for model: {model_name} ({version})...")
+
+        if group_df.empty or group_df['death_x'].isnull().all():
+            print(f"  - No valid death position data for {model_name} {version}. Skipping.")
+            continue
+
+        plt.figure(figsize=(10, 10))
+        
+        # Create a 2D density plot
+        sns.kdeplot(
+            data=group_df,
+            x='death_x',
+            y='death_y',
+            fill=True,
+            thresh=0.05, # Don't plot areas with very low density
+            cmap="rocket_r", # Darker for higher density
+        )
+        
+        plt.title(f'Death Position Heatmap (Final Model)\nModel: {model_name} {version}', fontsize=16)
+        plt.xlabel('X Coordinate')
+        plt.ylabel('Y Coordinate')
+        plt.grid(True, linestyle='--', alpha=0.6)
+        
+        output_filename = f'graphs/{version}/death_positions_{model_name}_{version}.png'
+        os.makedirs(os.path.dirname(output_filename), exist_ok=True)
+        plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"  - Saved heatmap to '{output_filename}'")
 
 
 def learning_graphs(data, exclude_versions):
@@ -513,11 +562,11 @@ def learning_graphs(data, exclude_versions):
     _plot_avg_score(all_checkpoints)
     _plot_score_stability(all_scores)
     _plot_death_causes(all_checkpoints)
-    _plot_avg_reward(all_checkpoints)
-    _plot_path_ratio_vs_score(all_path_ratios)
+    # _plot_avg_reward(all_checkpoints)
+    # _plot_path_ratio_vs_score(all_path_ratios)
     _plot_path_ratio_vs_score_lineplot(all_path_ratios)
     _plot_death_cause_distribution_by_score(all_death_details)
-    #TODO death pos heatmaps for final model TODO only take last model see death cause KDE
+    # _plot_death_position_heatmap(all_positions)
     
     print("\nAll graphs have been generated successfully.")
 
@@ -529,6 +578,6 @@ if __name__ == '__main__':
     with open('./results.json', 'r') as file:
         data = json.load(file)
 
-    exclude_versions = [ "v1.1", 'v1.2', 'int']
+    exclude_versions = [ 'int', "2.4", '2.5']
 
     learning_graphs(data, exclude_versions)
